@@ -19,6 +19,10 @@ class Image:
         object_dirs = os.listdir(path=self.data_path)
         return object_dirs
 
+    def get_date(self, data_file : str) -> str:
+        date = '-'.join(data_file.split('_')[2:5])
+        return date
+
     def draw_uv(self, obj: str) -> None:
         if len(self.object_uv_data) == 0:
             for file in os.listdir(f'{self.data_path}/{obj}'):
@@ -48,7 +52,7 @@ class Image:
             plt.ylabel(r'V Baseline projection (M$\lambda$)')
 
             plt.title(obj, loc='center')
-            date = '-'.join(data_file.split('_')[2:5])
+            date = self.get_date(data_file)
             plt.title(date, loc='left')
 
             # Should be redone
