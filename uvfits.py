@@ -243,11 +243,9 @@ class UVFits:
         self.hdulist.close()
 
     """ My additions """
-    def get_uv(self):
-        u_clean = []
-        v_clean = []
+    def get_uv(self) -> tuple[list, list]:
+        u_clean, v_clean = [], []
         for ind in range(self.gcount):
-            #ant1_name, ant2_name = self.get_ant_by_ind(ind)
             for if_num in range(self.no_if):
                 uu = self.u_raw[ind] * (self.freq + self.freq_table[if_num]["if_freq"])
                 vv = self.v_raw[ind] * (self.freq + self.freq_table[if_num]["if_freq"])

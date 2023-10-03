@@ -1,51 +1,47 @@
 import psycopg2
-import yaml
-from image import Image
-import os
+
+class Table(object):
+    def __init__(self, config, table_name) -> None:
+        self.host = config['host']
+        self.user = config['user']
+        self.dbname = config['dbname']
+        self.psswd = config['psswd']
+        self.table_name = table_name
+
+        self.conn, self.cur = None, None
+    
+    def connect2table(self) -> None:
+        with psycopg2.connect(host=self.host, dbname=self.dbname,
+                              user=self.user, password=self.psswd) as self.conn:
+               self.cur = self.conn.cursor()
+
+    def select_all(self) -> list[str]:
+        select_all = f'select * from {self.table_name};'
+        self.cur.execute(select_all)
+        return self.cur.fetchall()
+    
+    def close_table(self) -> None:
+        """
+        Written just in case, probably will not be used
+        """
+        if not self.conn:
+            self.cur.close()
+            self.conn.close()
 
 
-def insert_value(values: list) -> None:
-    conn = None
-    create_astrogeo = 'create table if not exists astrogeo(\
-        object_id serial primary key,\
-        object_name varchar(10), obs_date date,\
-        freq float(5), file_name varchar(50));'
-    insert = (
-        "insert into astrogeo(object_name, obs_date, freq, file_name) values (%s, %s, %s, %s);")
-    select_all = 'select * from astrogeo;'
+class Catalogue(Table):
+    def create_table(self) -> None:
+        create_table_query = (
+            f'create table if not exists {self.table_name}(\
+            object_id serial primary key,\
+            object_name varchar(10), obs_date date,\
+            freq float(5), file_name varchar(50));')
+        self.cur.execute(create_table_query)
+        self.conn.commit()
 
-    try:
-        conn = psycopg2.connect(host=config['host'], dbname=config['dbname'],
-                                user=config['user'], password=config['psswd'])
-        cur = conn.cursor()
-
-        cur.execute(create_astrogeo)
-        cur.execute(insert, (values[0], values[1], values[2], values[3]))
-        cur.execute(select_all)
-        print(cur.fetchall())
-        conn.commit()
-        cur.close()
-
-    finally:
-        if conn is not None:
-            conn.close()
-
-
-with open('config.yaml') as f:
-    config = yaml.load(f, Loader=yaml.FullLoader)['db']
-
-# insering 1 object into database
-im = Image()
-obj = im.get_objects()[0]
-
-path = im.data_path
-all_files = os.listdir(f'{path}/{obj}')
-data_files = []
-for file in all_files:
-    if file[-4:] == 'fits':
-        data_files.append(file)
-date = im.get_date(data_files[0])
-# print(data_files[0])
-
-freq = 1.
-insert_value([obj, date, freq, data_files[0]])
+    def insert_value(self, values: list) -> None:
+        insert_query = (
+        f'insert into {self.table_name}(object_name, obs_date, freq, obs_author, file_name)\
+        values (%s, %s, %s, %s);')
+        self.cur.execute(insert_query, (values[0], values[1], values[2], values[3]))
+        self.conn.commit()
