@@ -1,101 +1,104 @@
 import os
-import yaml
-import numpy as np
-import pandas as pd
-from astropy.io import fits
 import matplotlib.pyplot as plt
-from uvfits import UVFits
 from consts import *
+from fits import UVFits, MapFits, FitsError
 
+# TODO: add LOF to plots
 
-class Image(object):
-    def __init__(self) -> None:
-        with open('config.yaml') as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
-        self.data_path = config['path']
+class Image(UVFits, MapFits):
+    def __init__(self, file_name: str) -> None:
+        if file_name[-8:] == VIS_FITS:
+            UVFits.__init__(self, file_name)
+        elif file_name[-8:] == MAP_FITS:
+            MapFits.__init__(self, file_name)
+        else:
+            raise FitsError('Wrong extension of file', self.file_name)
 
-    def get_objects(self) -> list[str]:
-        return os.listdir(path=self.data_path)
+    def draw_uv(self) -> None:
+        # checking if directory for UV plots exists, if not creates it
+        if not os.path.exists(UV_DIR):
+            os.makedirs(UV_DIR)
+        
+        uu, vv = self.uv_data()
+        fig, ax = plt.subplots()
+        ax.scatter(uu * 1e-6, vv * 1e-6, marker=DOT, color=COLOR)
+        ax.scatter(uu * -1e-6, vv * -1e-6, marker=DOT, color=COLOR) # symmetrical points
+        # ax.set_xlim(-200, 200)
+        # ax.set_ylim(-200, 200)
+        ax.set_xlabel(r'U Baseline projection (M$\lambda$)')
+        ax.set_ylabel(r'V Baseline projection (M$\lambda$)')
 
-    def obj_uv_files(self, obj) -> list[str]:
-        return [file for file in os.listdir(f'{self.data_path}/{obj}') 
-                if file[-8:] == vis_fits]
-    
-    def obj_map_files(self, obj) -> list[str]:
-        return [file for file in os.listdir(f'{self.data_path}/{obj}') 
-                if file[-8:] == map_fits]
+        ax.set_title(self.object, loc=CENTER)
+        ax.set_title(self.date, loc=LEFT)
+        ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
+        uv_plot_name = self.file_name.split('/')[-1][:-9]
+        fig.savefig(f'{UV_DIR}/{uv_plot_name}.png', dpi=500)
+        plt.close(fig)
 
-    def get_date(self, data_file: str) -> str:
-        return '-'.join(data_file.split('_')[2:5])
-
-    def draw_uv(self, obj: str) -> None:
-        if not os.path.exists(uv_dir):
-            os.makedirs(uv_dir)
-
-        for data_file in self.obj_uv_files(obj):
-            data = UVFits(f'{self.data_path}/{obj}/{data_file}')
-            uu, vv = np.array(data.get_uv())
-
-            fig, ax = plt.subplots()
-            ax.scatter(uu * 1e-6, vv * 1e-6, marker=dot, color=blue)
-            ax.scatter(uu * -1e-6, vv * -1e-6, marker=dot, color=blue) # symmetrical points
-            ax.set_xlim(-200, 200)
-            ax.set_ylim(-200, 200)
-            ax.set_xlabel(r'U Baseline projection (M$\lambda$)')
-            ax.set_ylabel(r'V Baseline projection (M$\lambda$)')
-
-            # Should be redone
-            freq = "4.3 GHz"
-
-            ax.set_title(obj, loc=center)
-            ax.set_title(self.get_date(data_file), loc=left)
-            ax.set_title(freq, loc=right)
-
-            fig.savefig(f'{uv_dir}/{data_file}.png', dpi=500)
-            plt.close(fig)
-
-    def draw_map(self, obj: str) -> None:
+    def draw_map(self) -> None:
         # checking if directory for maps exists, if not creates it
-        if not os.path.exists(map_dir):
-            os.makedirs(map_dir)
+        if not os.path.exists(MAP_DIR):
+            os.makedirs(MAP_DIR)
         
-        for data_file in self.obj_map_files(obj):
-            with fits.open(f'{self.data_path}/{obj}/{data_file}') as data:
-                fig, ax = plt.subplots()
-                map2d = data[0].data.squeeze()
-                ax.imshow(map2d, cmap='magma')
+        data = self.map_data()
+        map2d = data.squeeze()
 
-                # Should be redone
-                freq = "4.3 GHz"
+        fig, ax = plt.subplots()
+        ax.imshow(map2d, cmap=CMAP)
 
-                ax.set_title(obj, loc=center)
-                ax.set_title(self.get_date(data_file), loc=left)
-                ax.set_title(freq, loc=right)
+        ax.set_title(self.object, loc=CENTER)
+        ax.set_title(self.date, loc=LEFT)
+        ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
 
-                fig.savefig(f'{map_dir}/{data_file}.png', dpi=500)
-                plt.close(fig)
+        map_plot_name = self.file_name.split('/')[-1][:-9]
+        fig.savefig(f'{MAP_DIR}/{map_plot_name}.png', dpi=500)
+        plt.close(fig)
+    
+    """
+    def freq(self, obj: str) -> None:
+        data_file = self.obj_uv_files(obj)[0]
+        uv = fits.open(f'{self.data_path}/{obj}/{data_file}')
+        # fits.info(f'{self.data_path}/{obj}/{data_file}')
 
-    def get_parameters(self, obj: str) -> pd.DataFrame:
-        ''' get some parameters from a header: CRVAL, CRPIX, FREQ, SOURCE, DATE-OBS'''
-        object_map_data = self.obj_map_files(obj)
-        
-        with fits.open(f'{self.data_path}/{obj}/{object_map_data[0]}') as fits_obj:
-            header = fits_obj[0].header
-        
-        param = pd.DataFrame(columns = ['racenpix', 'deccenpix', # central pixel coords in px
-                                        'rapixsize', 'decpixsize', # pixel size in degrees
-                                        'ramapsize', 'decmapsize', # map size in px
-                                        'bmaj', 'bmin', 'bpa', # degrees, to be checked
-                                        'source', 'dateobs',
-                                        'frequency', # Hz
-                                        'masperpix', 'masperpixx', 'masperpixy'], # pixel size in mas
-                            data = [[header['CRPIX1'], header['CRPIX2'],
-                                header['CDELT1'], header['CDELT2'], 
-                                header['NAXIS1'], header['NAXIS2'],
-                                header['BMAJ'], header['BMIN'], header['BPA'],
-                                header['OBJECT'], header['DATE-OBS'],
-                                header['CRVAL3'], 
-                                np.abs(header['CDELT1']) * 3.6e6, 
-                                header['CDELT1'] * 3.6e6, header['CDELT2'] * 3.6e6]])
-        # MASperPIX = np.abs(self.rm[0].header['CDELT1']*3.6e6)
-        return param
+        # print(uv[2].header['FREQ'] * 1e-9) # <- frequency
+        # print(uv[2].header['EXTVER']) # <- number of subarrays
+
+        '''
+        for i in range(5):
+            print(uv[1].header[f'TTYPE{i+1}'], uv[1].header[f'TUNIT{i+1}'])
+        for i in range(12):
+            print(uv[2].header[f'TTYPE{i+1}'], uv[2].header[f'TUNIT{i+1}'])
+        '''
+        '''
+        for i in uv[1].header:
+            print(i, uv[1].header[i])
+        for i in uv[2].header:
+            print(i, uv[2].header[i])
+        '''
+
+        # print(list(uv[0].header.keys()))
+        # print(uv[0].data)
+        # print(uv[2].data.field(0))
+        # print(inspect.getmembers(uv[0].data))
+        # print(uv[2].data['ANNAME'])
+        # print(uv[2].data['STABXYZ'])
+        # print(uv[2].data['ORBPARM'])
+        '''
+        keys = ['UU', 'VV', 'WW', 'BASELINE', 'DATE', '_DATE', 'INTTIM', 'DATA']
+        for i in keys:
+            print(i, uv[0].data[i])
+        '''
+        # uv.info()
+        '''
+        Primary table -- data
+        ['UU', 'VV', 'WW', 'BASELINE', 'DATE', '_DATE', 'INTTIM', 'DATA']
+        AN table -- data
+        ['ANNAME', 'STABXYZ', 'ORBPARM', 'NOSTA', 'MNTSTA',\
+        'STAXOF', 'POLTYA', 'POLAA', 'POLCALA', 'POLTYB',\
+        'POLAB', 'POLCALB']
+
+        FQ table -- data
+        ['FRQSEL', 'IF FREQ', 'CH WIDTH', 'TOTAL BANDWIDTH',\
+        'SIDEBAND']
+        '''
+    """
