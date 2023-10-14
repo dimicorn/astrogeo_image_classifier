@@ -1,5 +1,6 @@
 MAP_DIR = 'maps'
 UV_DIR = 'uv_plots'
+LOF_DIR = 'lof'
 
 VIS_FITS = 'vis.fits'
 MAP_FITS = 'map.fits'
@@ -109,4 +110,27 @@ POLTYB = 'POLTYB' # ’R’, ’L’, polarization 2
 POLAB = 'POLAB' # Position angle feed B [degrees]
 POLCALB = 'POLCALB' # Calibration parameters feed B
 
-# TODO: add CC TABLE KEYS
+'''CC TABLE HEADER KEYS'''
+TFIELDS = 'TFIELDS'
+CRPIX1 = 'CRPIX1'
+CRPIX2 = 'CRPIX2'
+CDELT1 = 'CDELT1'
+CDELT2 = 'CDELT2'
+NAXIS1 = 'NAXIS1'
+NAXIS2 = 'NAXIS2'
+BMAJ = 'BMAJ'
+BMIN = 'BMIN'
+BPA = 'BPA'
+CRVAL3 = 'CRVAL3'
+CDELT1 = 'CDELT1'
+CDELT2 = 'CDELT2'
+
+'''CC TABLE DATA KEYS'''
+FLUX = 'FLUX' # Component total flux [Jy]
+DELTAX = 'DELTAX' # X separation [degrees]
+DELTAY = 'DELTAY' # Y separation [degrees]
+MAJOR_AX = 'MAJOR AX' # Component major axis [degrees]
+MINOR_AX = 'MINOR AX' # Component minor axis [degrees]
+POSANGLE = 'POSANGLE' # Component position angle [degrees]
+TYPE_OBJ = 'TYPE OBJ' # Component type code
+# 0: point, 1: Gaussian, 2: convolved Gaussian, 3: uniform optically-thin sphere

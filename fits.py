@@ -1,5 +1,6 @@
 import numpy as np
 from astropy.io import fits
+from sklearn.neighbors import LocalOutlierFactor as lof
 from consts import *
 import pandas as pd
 
@@ -18,7 +19,7 @@ class Fits(object):
     hdulist = None
     file_name = None
 
-    def uv_header(self) -> tuple[str, str, str]:
+    def header_data(self) -> tuple[str, str, str]:
         '''Reading PRIMARY table header'''
         header = self.hdulist[PRIMARY].header
         return (header[OBJECT], header[DATE_OBS], header[AUTHOR])
@@ -45,6 +46,7 @@ class UVFits(Fits):
         self._uv_header, self._uv_data = None, None
         self._freq_header, self._freq_data = None, None
         self._antenna_header, self._antenna_data = None, None
+        self._X = None
 
         with fits.open(file_name) as f:
             f.verify('fix')
@@ -73,20 +75,44 @@ class UVFits(Fits):
         self.date = self._uv_header[DATE_OBS]
         self.object = self._uv_header[OBJECT]
 
-    def uv_data(self) -> tuple[np.array, np.array]:
+    def uv_data(self) -> np.array:
         '''Reading UV data'''
-        data = self._uv_data
-        gcount = self._uv_header[GCOUNT]
-        if_nums = self._freq_header[NO_IF]
-        if_freq = self._freq_data[IF_FREQ]
+        if self._X is None:
+            data = self._uv_data
+            gcount = self._uv_header[GCOUNT]
+            if_nums = self._freq_header[NO_IF]
+            if_freq = self._freq_data[IF_FREQ]
 
-        uu, vv = [], []
-        for ind in range(gcount):
-            for if_num in range(if_nums):
-                uu.append(data[UU][ind] * (self.freq + if_freq[if_num]))
-                vv.append(data[VV][ind] * (self.freq + if_freq[if_num]))
+            # FIXME: check loop below + it sometimes has errors
+            uu, vv = [], []
+            for ind in range(gcount):
+                for if_num in range(if_nums):
+                    u = data[UU][ind] * (self.freq + if_freq[if_num])
+                    v = data[VV][ind] * (self.freq + if_freq[if_num])
+                    uu.append(u)
+                    vv.append(v)
+
+            X = np.array([uu, vv])
+            X = np.reshape(X, (X.shape[1], X.shape[0]))
+            self._X = np.append(X, -X, axis=0)
         
-        return (np.array(uu), np.array(vv))
+        return self._X
+
+    def uv_outliers(self) -> tuple[np.array, np.array, list]:
+        X = self.uv_data()
+        clf = lof(n_neighbors=75, contamination=0.01)
+        y_pred = clf.fit_predict(X)
+        X_scores = clf.negative_outlier_factor_
+        inl, outl = [], []
+        for i, val in enumerate(y_pred):
+            if val == -1:
+                outl.append([X[i][0], X[i][1]])
+            elif val == 1:
+                inl.append([X[i][0], X[i][1]])
+        
+        inl, outl = np.array(inl), np.array(outl)
+
+        return (inl, outl, X_scores)
 
     def _read_fq_table(self) -> None:
         '''Reading FQ (frequency) table'''
@@ -150,49 +176,29 @@ class MapFits(Fits):
         self.date = self._map_header[DATE_OBS]
         self.object = self._map_header[OBJECT]
         self.freq = self.get_freq()
-        # print(list(self._map_header.keys()))
-        # print(self._map_header['PCOUNT'])
 
     def map_data(self):
         return self._map_data
 
     def get_parameters(self) -> pd.DataFrame:
-        # map parameters
         ''' get some parameters from a header: CRVAL, CRPIX, FREQ, SOURCE, DATE-OBS'''
         header = self._map_header
-        
-        params = pd.DataFrame(columns = ['racenpix', 'deccenpix', # central pixel coords in px
-                                        'rapixsize', 'decpixsize', # pixel size in degrees
-                                        'ramapsize', 'decmapsize', # map size in px
-                                        'bmaj', 'bmin', 'bpa', # degrees, to be checked
-                                        'source', 'dateobs',
-                                        'frequency', # Hz
-                                        'masperpix', 'masperpixx', 'masperpixy'], # pixel size in mas
-                            data = [[header['CRPIX1'], header['CRPIX2'],
-                                header['CDELT1'], header['CDELT2'], 
-                                header['NAXIS1'], header['NAXIS2'],
-                                header['BMAJ'], header['BMIN'], header['BPA'],
-                                header['OBJECT'], header['DATE-OBS'],
-                                header['CRVAL3'], 
-                                np.abs(header['CDELT1']) * 3.6e6, 
-                                header['CDELT1'] * 3.6e6, header['CDELT2'] * 3.6e6]])
-        # MASperPIX = np.abs(self.rm[0].header['CDELT1']*3.6e6)
-        return params
-
-    def models(self) -> None:
-        header = self._cc_header
-        print(list(header.keys()))
-        # print(map[1].header['EXTVER'])
-        # print(map[1].data['FLUX'])
-        # print(map[1].data.field(0))
-        # print(map[1].data['DELTAX'])
-        # print(map[1].data['DELTAY'])
-        # print(map[1].data['MAJOR AX'])
-        # print(map[1].data['MINOR AX'])
-        # print(map[1].data['POSANGLE'])
-        # print(map[1].data['TYPE OBJ'])
-
-        datum_type = 'TTYPE'
-        for i in range(7):
-            print(map[1].header[f'TTYPE{i+1}'], map[1].header[f'TUNIT{i+1}'])
+        keys = [CRPIX1, CRPIX2, CDELT1, CDELT2, NAXIS1, NAXIS2, BMAJ, BMIN, BPA,
+                OBJECT, DATE_OBS, CRVAL3, CDELT1, CDELT2]
+        params = {key: np.array([header[key]]) for key in keys}
+        params[CDELT1] *= 3.6e6
+        params[CDELT2] *= 3.6e6
+        return pd.DataFrame(params)
     
+    def get_models(self) -> pd.DataFrame:
+        models = pd.DataFrame()
+        keys = [FLUX, DELTAX, DELTAY, MAJOR_AX, MINOR_AX, POSANGLE, TYPE_OBJ]
+        new_keys = [FLUX, DELTAX, DELTAY, 'MAJOR_AX', 'MINOR_AX', POSANGLE, 'TYPE_OBJ']
+        field_num = self._cc_header[TFIELDS]
+        for field, key, new_key in zip(range(field_num), keys, new_keys):
+            models[new_key] = self._cc_data[key].tolist()
+        
+        if field_num == 7 or field_num == 3:
+            return models
+        else:
+            raise FitsError('Wrong number of columns in CC table', self.file_name)

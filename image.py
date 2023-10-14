@@ -1,9 +1,11 @@
 import os
 import matplotlib.pyplot as plt
+from matplotlib.legend_handler import HandlerPathCollection
+import numpy as np
 from consts import *
 from fits import UVFits, MapFits, FitsError
 
-# TODO: add LOF to plots
+# TODO: use amplitude in LOF
 
 class Image(UVFits, MapFits):
     def __init__(self, file_name: str) -> None:
@@ -19,12 +21,10 @@ class Image(UVFits, MapFits):
         if not os.path.exists(UV_DIR):
             os.makedirs(UV_DIR)
         
-        uu, vv = self.uv_data()
+        X = self.uv_data()
         fig, ax = plt.subplots()
-        ax.scatter(uu * 1e-6, vv * 1e-6, marker=DOT, color=COLOR)
-        ax.scatter(uu * -1e-6, vv * -1e-6, marker=DOT, color=COLOR) # symmetrical points
-        # ax.set_xlim(-200, 200)
-        # ax.set_ylim(-200, 200)
+        ax.scatter(X[:, 0] * 1e-6, X[:, 1] * 1e-6, marker=DOT, color=COLOR)
+        # ax.scatter(X[:, 0] * -1e-6, X[:, 1] * -1e-6, marker=DOT, color=COLOR) # symmetrical points
         ax.set_xlabel(r'U Baseline projection (M$\lambda$)')
         ax.set_ylabel(r'V Baseline projection (M$\lambda$)')
 
@@ -33,6 +33,42 @@ class Image(UVFits, MapFits):
         ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
         uv_plot_name = self.file_name.split('/')[-1][:-9]
         fig.savefig(f'{UV_DIR}/{uv_plot_name}.png', dpi=500)
+        plt.close(fig)
+    
+    def _update_legend_marker_size(self, handle, orig) -> None:
+        'Customize size of the legend marker'
+        handle.update_from(orig)
+        handle.set_sizes([20])
+    
+    def draw_uv_lof(self) -> None:
+        if not os.path.exists(LOF_DIR):
+            os.makedirs(LOF_DIR)
+        
+        X = self.uv_data()
+        inl, outl, scores = self.uv_outliers()
+
+        fig, ax = plt.subplots()
+        ax.scatter(inl[:, 0] * 1e-6, inl[:, 1] * 1e-6, marker=DOT, color='b', label='Inliers')
+        ax.scatter(outl[:, 0] * 1e-6, outl[:, 1] * 1e-6, marker=DOT, color='r', label='Outliers')
+        # plot circles with radius proportional to the outlier scores
+        radius = abs(np.mean(scores) - scores) / np.std(scores)
+        radus = (np.max(scores) - scores) / (np.max(scores) - np.min(scores))
+        scatter = ax.scatter(X[:, 0] * 1e-6, X[:, 1] * 1e-6,
+            s=10 * radius,
+            edgecolors='g',
+            facecolors='none',
+            label=r'$\frac{|\overline{x} - x_i|}{\sigma}$'
+            # label=r'$\frac{x_{max} - x_i}{x_{max} - x_{min}}$'
+        )
+        ax.axis('tight')
+        ax.legend(
+            handler_map={scatter: HandlerPathCollection(update_func=self._update_legend_marker_size)}
+        )
+        ax.set_title(self.object, loc=CENTER)
+        ax.set_title(self.date, loc=LEFT)
+        ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
+        lof_plot_name = self.file_name.split('/')[-1][:-9]
+        plt.savefig(f'{LOF_DIR}/{lof_plot_name}.png', dpi=500)
         plt.close(fig)
 
     def draw_map(self) -> None:

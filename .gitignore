@@ -1,6 +1,7 @@
 __pycache__/
 uv_plots/
 maps/
+lof/
 config.yaml
 todo.md
 ps.sh
