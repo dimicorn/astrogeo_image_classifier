@@ -6,3 +6,4 @@ config.yaml
 todo.md
 ps.sh
 test/
+legacy/*.png

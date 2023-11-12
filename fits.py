@@ -48,6 +48,8 @@ class UVFits(Fits):
         self._antenna_header, self._antenna_data = None, None
         self._X = None
 
+        self.ampl, self.phase = None, None
+
         with fits.open(file_name) as f:
             f.verify('fix')
             self.hdulist = f
@@ -85,23 +87,39 @@ class UVFits(Fits):
 
             # FIXME: check loop below + it sometimes has errors
             uu, vv = [], []
-            for ind in range(gcount):
-                for if_num in range(if_nums):
-                    u = data[UU][ind] * (self.freq + if_freq[if_num])
-                    v = data[VV][ind] * (self.freq + if_freq[if_num])
-                    uu.append(u)
-                    vv.append(v)
+            if if_nums == 1:
+                for ind in range(gcount):
+                    for if_num in range(if_nums):
+                        u = data[UU][ind] * (self.freq + if_freq[if_num])
+                        v = data[VV][ind] * (self.freq + if_freq[if_num])
+                        uu.append(u)
+                        vv.append(v)
+            elif if_nums > 1:
+                for ind in range(gcount):
+                    for if_num in range(if_nums):
+                        u = data[UU][ind] * (self.freq + if_freq[0][if_num])
+                        v = data[VV][ind] * (self.freq + if_freq[0][if_num])
+                        uu.append(u)
+                        vv.append(v)
+            
+            vis = data.data[:, 0, 0, :, 0, 0, 0] + data.data[:, 0, 0, :, 0, 0, 1] * 1j
+            ampl = np.absolute(vis).flatten()
+            phase = np.angle(vis).flatten()
 
-            X = np.array([uu, vv])
-            X = np.reshape(X, (X.shape[1], X.shape[0]))
-            self._X = np.append(X, -X, axis=0)
-        
+            X = np.array([np.array(uu), np.array(vv), np.array(ampl), np.array(phase)])
+            X_sym = np.copy(X)
+            X_sym[0] = -1 * X_sym[0]
+            X_sym[1] = -1 * X_sym[1]
+            self._X = np.append(X, X_sym, axis=0)
+
         return self._X
 
+    '''
     def uv_outliers(self) -> tuple[np.array, np.array, list]:
-        X = self.uv_data()
+        X = self.uv_data()[0:3]
         clf = lof(n_neighbors=75, contamination=0.01)
         y_pred = clf.fit_predict(X)
+        # print(len(y_pred))
         X_scores = clf.negative_outlier_factor_
         inl, outl = [], []
         for i, val in enumerate(y_pred):
@@ -111,9 +129,11 @@ class UVFits(Fits):
                 inl.append([X[i][0], X[i][1]])
         
         inl, outl = np.array(inl), np.array(outl)
-
+        
         return (inl, outl, X_scores)
+    '''
 
+    """
     def _read_fq_table(self) -> None:
         '''Reading FQ (frequency) table'''
         self.no_if = self.hdulist[AIPS_FQ].header[NO_IF]
@@ -151,6 +171,7 @@ class UVFits(Fits):
                 an_data.append([sub+1, row[NOSTA], row[ANNAME], ])
         self.an_df = pd.DataFrame(columns=[EXTVER, NOSTA, ANNAME], data=an_data)
         # print(self.an_df)
+    """
 
 class MapFits(Fits):
     def __init__(self, file_name) -> None:
