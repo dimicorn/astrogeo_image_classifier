@@ -31,7 +31,7 @@ class Image(UVFits, MapFits):
         ax.set_title(self.object, loc=CENTER)
         ax.set_title(self.date, loc=LEFT)
         ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
-        uv_plot_name = self.file_name.split('/')[-1][:-9]
+        uv_plot_name = self.file_name[:-9]
         fig.savefig(f'{UV_DIR}/{uv_plot_name}.png', dpi=500)
         plt.close(fig)
     
@@ -80,7 +80,7 @@ class Image(UVFits, MapFits):
         ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
         ax.set_xlabel(r'U Baseline projection (M$\lambda$)')
         ax.set_ylabel(r'V Baseline projection (M$\lambda$)')
-        lof_plot_name = self.file_name.split('/')[-1][:-9]
+        lof_plot_name = self.file_name[:-9]
         plt.savefig(f'test/test_lof_2d.png.png', dpi=500)
         plt.close(fig)
     
@@ -123,7 +123,7 @@ class Image(UVFits, MapFits):
         ax.set_xlabel(r'U Baseline projection (M$\lambda$)')
         ax.set_ylabel(r'V Baseline projection (M$\lambda$)')
         ax.set_zlabel('Amplitude, Jy')
-        lof_plot_name = self.file_name.split('/')[-1][:-9]
+        lof_plot_name = self.file_name[:-9]
         plt.savefig(f'test/test_lof_3d.png', dpi=500)
         plt.close(fig)
     
@@ -164,6 +164,6 @@ class Image(UVFits, MapFits):
         ax.set_title(self.date, loc=LEFT)
         ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
 
-        map_plot_name = self.file_name.split('/')[-1][:-9]
+        map_plot_name = self.file_name[:-9]
         fig.savefig(f'{MAP_DIR}/{map_plot_name}.png', dpi=500)
         plt.close(fig)
