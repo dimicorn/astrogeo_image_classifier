@@ -24,7 +24,6 @@ class Image(UVFits, MapFits):
         X = self.uv_data()
         fig, ax = plt.subplots()
         ax.scatter(X[0] * 1e-6, X[1] * 1e-6, marker=DOT, color=COLOR)
-        # ax.scatter(X[:, 0] * -1e-6, X[:, 1] * -1e-6, marker=DOT, color=COLOR) # symmetrical points
         ax.set_xlabel(r'U Baseline projection (M$\lambda$)')
         ax.set_ylabel(r'V Baseline projection (M$\lambda$)')
 
@@ -165,5 +164,5 @@ class Image(UVFits, MapFits):
         ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
 
         map_plot_name = self.file_name[:-9]
-        fig.savefig(f'{MAP_DIR}/{map_plot_name}.png', dpi=500)
+        fig.savefig(f'test/rect_map.png', dpi=500) # {MAP_DIR}/{map_plot_name}
         plt.close(fig)

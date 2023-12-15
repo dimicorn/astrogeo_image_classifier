@@ -1,6 +1,5 @@
 import numpy as np
 from astropy.io import fits
-from sklearn.neighbors import LocalOutlierFactor as lof
 from consts import *
 import pandas as pd
 
@@ -21,18 +20,21 @@ class Fits(object):
 
     def sanity_check(self, f):
         if not f[PRIMARY].header[SIMPLE]:
-            raise FitsError('Non standard Fits file', self.file_name)
+            # raise FitsError('Non standard Fits file', self.file_name)
+            print(f'Non standard Fits file {self.file_name}')
         
         header = f[PRIMARY].header
         obj_name_1 = header[OBJECT]
         file_name = self.file_name
         obj_name_2 = file_name.split('_')[0]
         if obj_name_1 != obj_name_2:
-            raise FitsError('Object name does not correspond to one in file name', self.file_name)
+            # raise FitsError('Object name does not correspond to one in file name', self.file_name)
+            print(f'Object name does not correspond to one in file name {self.file_name}')
         
         folder_name = self.file_name_w_path.split('/')[-2]
         if obj_name_1 != folder_name:
-            raise FitsError(f'Object {obj_name_1} in the {folder_name}/ directory', self.file_name)
+            # raise FitsError(f'Object {obj_name_1} in the {folder_name}/ directory', self.file_name)
+            print(f'Object {obj_name_1} in the {folder_name}/ directory {self.file_name}')
         
         freq_bands = {'L': (1, 1.8), 'S': (1.8, 2.8), 'C': (2.8, 7), 'X': (7, 9), 'U': (9, 17), 'K': (17, 26),
                   'Q': (26, 50), 'W': (50, 100), 'G': (100, 250)}
@@ -41,7 +43,8 @@ class Fits(object):
         freq_lower, freq_upper = freq_bands[freq_band][0], freq_bands[freq_band][1]
         freq = self.get_freq() * 1e-9
         if not (freq_lower <= freq and freq <= freq_upper):
-            raise FitsError(f'Wrong FREQ band ({freq_band}) in file name, frequency value {freq} GHz', self.file_name)
+            # raise FitsError(f'Wrong FREQ band ({freq_band}) in file name, frequency value {freq} GHz', self.file_name)
+            print(f'Wrong FREQ band ({freq_band}) in file name, frequency value {freq} GHz, {self.file_name}')
 
     def header_data(self) -> tuple:
         '''Reading PRIMARY table header'''
@@ -59,6 +62,22 @@ class Fits(object):
                 ...
         raise FitsError('No CTYPE_i == FREQ was found', self.file_name)
     
+    def header_key_check(self, key):
+        header = self._map_header
+        try:
+            return header[key]
+        except KeyError:
+            print(f'Caution: {self.file_name} has no {key} key')
+            return -1
+    
+    def uv_data_key_check(self, key):
+        data = self._freq_data
+        try:
+            return data[key]
+        except KeyError:
+            print(f'Caution: {self.file_name} has no {key} key')
+            return -1
+
     def print_header(self) -> None:
         '''Printing header of the PRIMARY table'''
         header = self.hdulist[PRIMARY].header
@@ -93,8 +112,12 @@ class UVFits(Fits):
             elif len(f) == 3:
                 self._freq_header = f[AIPS_FQ].header
                 self._freq_data = f[AIPS_FQ].data
-                self._antenna_header = f[AIPS_AN].header
-                self._antenna_data = f[AIPS_AN].data
+                try:
+                    self._antenna_header = f[AIPS_AN].header
+                    self._antenna_data = f[AIPS_AN].data
+                except KeyError:
+                    self._antenna_header = f['AIPS NX'].header
+                    self._antenna_data = f['AIPS NX'].data
                 self._an_tables = 1
             else:
                 # Assuming that other AN tables are the same, no need to store them
@@ -105,9 +128,7 @@ class UVFits(Fits):
                 self._an_tables = len(f) - 2
                 print(f'Caution: {self.file_name} has multiple AN tables')
         
-        # self.freq = self._antenna_header[FREQ]
         self.freq = self.get_freq()
-        # print(self._antenna_data[0] == self._antenna_data[1])
         self.date = self._uv_header[DATE_OBS]
         self.object = self._uv_header[OBJECT]
         self.uv_data()
@@ -132,7 +153,7 @@ class UVFits(Fits):
                     try:
                         data['UU---SIN'], data['VV---SIN']
                         uu_key, vv_key = 'UU---SIN', 'VV---SIN'
-                    except KeyError: print('Fuck me')
+                    except KeyError: print(f'Caution: {self.file_name} has weird UU and VV keys')
 
             if if_nums == 1:
                 for ind in range(gcount):
@@ -171,9 +192,7 @@ class UVFits(Fits):
         min_radius, max_radius = np.min(radius), np.max(radius)
         ampl = self._X[2]
         ampl_data = (np.min(ampl), np.max(ampl), np.mean(ampl), np.median(ampl))
-        # freq band
-        freq_ch_sum = np.sum(self._freq_data[CH_WIDTH])
-        # print(self._freq_header, self._freq_data[CH_WIDTH], self._freq_data[TOTAL_BANDWIDTH])
+        freq_ch_sum = np.sum(self.uv_data_key_check(CH_WIDTH)) # freq band
         uv_quality = 'n/a'
         comment = uv_quality
 
@@ -253,24 +272,21 @@ class MapFits(Fits):
         header, cc_tables = self._map_header, self._cc_tables
         
         map_data = self.map_data().squeeze()
-        map_max = header['DATAMAX']
-        mapc_x, mapc_y = header[CRPIX1], header[CRPIX2]
-        pixel_size_x, pixel_size_y = header[CDELT1] * 3.6e6, header[CDELT2] * 3.6e6
+        map_max = self.header_key_check('DATAMAX')
+        mapc_x, mapc_y = self.header_key_check(CRPIX1), self.header_key_check(CRPIX2)
+        pixel_size_x = self.header_key_check(CDELT1) * 3.6e6
+        pixel_size_y = self.header_key_check(CDELT2) * 3.6e6
         ind = np.argmax(map_data)
 
-        # FIXME: строчки и столбцы
-        map_max_x, map_max_y = np.unravel_index(ind, map_data.shape)
+        map_max_y, map_max_x = np.unravel_index(ind, map_data.shape) # строчки и столбцы
         noise_level = self.map_noise(map_data)
         map_max_x_mas, map_max_y_mas = map_max_x * pixel_size_x, map_max_y * pixel_size_y
         noise = (map_max, mapc_x, mapc_y, map_max_x, map_max_y, map_max_x_mas, map_max_y_mas, noise_level)
 
-        map_size_x, map_size_y = header[NAXIS1], header[NAXIS2]
-        try: bmaj = header[BMAJ]
-        except KeyError: bmaj = -1; print(f'Caution: {self.file_name} has no BMAJ key')
-        try: bmin = header[BMIN]
-        except KeyError: bmin = -1; print(f'Caution: {self.file_name} has no BMIN key')
-        try: bpa = header[BPA]
-        except KeyError: bpa = -1; print(f'Caution: {self.file_name} has no BPA key')
+        map_size_x, map_size_y = self.header_key_check(NAXIS1), self.header_key_check(NAXIS2)
+        bmaj = self.header_key_check(BMAJ)
+        bmin = self.header_key_check(BMIN)
+        bpa = self.header_key_check(BPA)
         
         map_params = (map_size_x, map_size_y, pixel_size_x, pixel_size_y, 
                       bmaj, bmin, bpa, cc_tables)

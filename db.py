@@ -20,7 +20,7 @@ class Table(object):
                               user=self.user, password=self.psswd) as self.conn:
                self.cur = self.conn.cursor()
 
-    def select_all(self) -> list[str]:
+    def select_all(self) -> list:
         select_all = f'select * from {self.table_name};'
         self.cur.execute(select_all)
         return self.cur.fetchall()
