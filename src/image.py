@@ -80,7 +80,7 @@ class Image(UVFits, MapFits):
         ax.set_xlabel(r'U Baseline projection (M$\lambda$)')
         ax.set_ylabel(r'V Baseline projection (M$\lambda$)')
         lof_plot_name = self.file_name[:-9]
-        plt.savefig(f'test/test_lof_2d.png.png', dpi=500)
+        plt.savefig(f'test/test_lof_2d.png', dpi=500)
         plt.close(fig)
     
     def draw_uv_3d(self) -> None:
@@ -155,11 +155,11 @@ class Image(UVFits, MapFits):
 
         data = self.map_data()
         map2d = data.squeeze()
-        noise = self.map_noise(map2d)
-        map2d = np.where(map2d > 5 * noise, map2d, 0)
+        # noise = self.map_noise(map2d)
+        # map2d = np.where(map2d > 5 * noise, map2d, 0)
         fig, ax = plt.subplots(figsize=(10, 8))
-        ax.imshow(np.log10(map2d), cmap=CMAP, origin='lower')
-
+        # ax.imshow(np.log10(map2d), cmap=CMAP, origin='lower')
+        ax.imshow(map2d, cmap=CMAP, origin='lower')
         ax.set_title(self.object, loc=CENTER)
         ax.set_title(self.date, loc=LEFT)
         ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
