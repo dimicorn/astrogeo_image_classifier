@@ -68,7 +68,7 @@ class FillTable:
 
 def main() -> int:
 	warnings.filterwarnings('ignore')
-	f = FillTable()
+	# f = FillTable()
 	# f.get_all_files()
 	# f.fill_uv()
 

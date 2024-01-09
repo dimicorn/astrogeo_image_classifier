@@ -155,14 +155,15 @@ class Image(UVFits, MapFits):
 
         data = self.map_data()
         map2d = data.squeeze()
-
-        fig, ax = plt.subplots()
-        ax.imshow(map2d, cmap=CMAP)
+        noise = self.map_noise(map2d)
+        map2d = np.where(map2d > 5 * noise, map2d, 0)
+        fig, ax = plt.subplots(figsize=(10, 8))
+        ax.imshow(np.log10(map2d), cmap=CMAP, origin='lower')
 
         ax.set_title(self.object, loc=CENTER)
         ax.set_title(self.date, loc=LEFT)
         ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
 
         map_plot_name = self.file_name[:-9]
-        fig.savefig(f'test/rect_map.png', dpi=500) # {MAP_DIR}/{map_plot_name}
+        fig.savefig(f'{MAP_DIR}/{map_plot_name}.png', dpi=500) # {MAP_DIR}/{map_plot_name}
         plt.close(fig)

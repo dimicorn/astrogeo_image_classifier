@@ -273,6 +273,7 @@ class MapFits(Fits):
         
         map_data = self.map_data().squeeze()
         map_max = self.header_key_check('DATAMAX')
+        # map_max = np.max(map_data)
         mapc_x, mapc_y = self.header_key_check(CRPIX1), self.header_key_check(CRPIX2)
         pixel_size_x = self.header_key_check(CDELT1) * 3.6e6
         pixel_size_y = self.header_key_check(CDELT2) * 3.6e6
