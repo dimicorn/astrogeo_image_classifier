@@ -6,10 +6,10 @@ import numpy as np
 
 
 class Filter(object):
-	def __init__(self, df: pd.DataFrame):
+	def __init__(self, df: pd.DataFrame, ratio: int) -> None:
 		self.maps = df
-		self.filter_df()
-		self.kmeans, self.X = None, None
+		self.dirty_maps = None
+		self.filter_df(ratio)
 	
 	def draw_sn_dist(self) -> None:
 		signal_noise = [sig/nl for sig, nl in zip(self.maps.map_max, self.maps.noise_level)]
@@ -36,16 +36,24 @@ class Filter(object):
 					if sig/nl <= ratio}
 		return signal_noise
 	
-	def filter_df(self) -> None:
+	def filter_df(self, ratio: int) -> None:
 		wm = self.weird_maps()
-		signal_noise = self.maps_w_bad_signal_noise(10)
-		bad_maps = wm.union(signal_noise)
+		self.dirty_maps = self.maps_w_bad_signal_noise(ratio)
+		bad_maps = wm.union(self.dirty_maps)
 
 		for x in self.maps.index:
 			b_maj, b_min = self.maps.loc[x, 'b_maj'], self.maps.loc[x, 'b_min']
 			file_name = self.maps.loc[x, 'file_name']
 			if b_maj == -1 or b_min == -1 or file_name in bad_maps:
 				self.maps.drop(x, inplace=True)
+
+class BeamCluster(Filter):
+	# TODO: Convert bmaj, bmin from arcsecs to pixels, 
+	# 		bpa from degrees to radians. Then normalise and 
+	# 		then do clustering.
+	def __init__(self, df: pd.DataFrame) -> None:
+		Filter.__init__(self, df)
+		self.kmeans, self.X = None, None
 	
 	def _beam_clustering(self, n: int) -> None:
 		X = self.maps[['b_maj', 'b_min', 'b_pa']].to_numpy()
