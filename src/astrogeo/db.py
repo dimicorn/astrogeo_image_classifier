@@ -22,8 +22,9 @@ class Table(object):
         self.conn, self.cur = None, None
     
     def connect2table(self) -> None:
-        with psycopg2.connect(host=self.host, dbname=self.dbname,
-                              user=self.user, password=self.psswd) as self.conn:
+        with psycopg2.connect(
+			host=self.host, dbname=self.dbname,
+			user=self.user, password=self.psswd) as self.conn:
                self.cur = self.conn.cursor()
 
     def select_all(self) -> list:
@@ -92,8 +93,8 @@ class OurMaps(Table):
             f'insert into {self.table_name}(object_name, obs_date, freq,\
             obs_author, file_name, map_max, mapc_x, mapc_y,\
             map_max_x, map_max_y, map_max_x_mas, map_max_y_mas,\
-            noise_level, map_size_x, map_size_y, pixel_size_x,\
-            pixel_size_y, b_maj, b_min, b_pa, cc_tables, map_quality, comment)\
+            noise_level, map_size_x, map_size_y, pixel_size_x, pixel_size_y,\
+			b_maj, b_min, b_pa, cc_tables, map_quality, comment)\
             values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, \
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);'
         )

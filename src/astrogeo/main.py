@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from types import SimpleNamespace as sn
 from image import Image
 from db import FillTable
-from filter import Filter
+from filter import Filter, BeamCluster
 
 
 def main() -> int:
@@ -15,12 +15,17 @@ def main() -> int:
 		config = sn(**yaml.load(f, Loader=yaml.FullLoader))
 	config_db, path = sn(**config.db), config.path
 
-	cnx = create_engine(f'postgresql://{config_db.user}:{config_db.psswd}@{config_db.host}/{config_db.dbname}')
+	cnx = create_engine(
+		f'postgresql://{config_db.user}:'
+		f'{config_db.psswd}@{config_db.host}/{config_db.dbname}'
+	)
 	cnx.connect()
-	maps, uvs = pd.read_sql_table('maps', cnx), pd.read_sql_table('catalogue', cnx)
+	maps = pd.read_sql_table('maps', cnx)
+	uvs = pd.read_sql_table('catalogue', cnx)
+	f = Filter(maps, 10)
+	# f.draw_dirty_maps(path, "dirty_maps")
 
-	return 0
+	return 0 
 
 if __name__ == "__main__":
-	res = main()
-	sys.exit(res)
+	sys.exit(main())

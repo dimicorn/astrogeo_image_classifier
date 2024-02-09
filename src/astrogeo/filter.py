@@ -1,8 +1,11 @@
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 from sklearn.cluster import KMeans
-import numpy as np
+from image import Image
+from consts import CENTER, CMAP
 
 
 class Filter(object):
@@ -12,7 +15,10 @@ class Filter(object):
 		self.filter_df(ratio)
 	
 	def draw_sn_dist(self) -> None:
-		signal_noise = [sig/nl for sig, nl in zip(self.maps.map_max, self.maps.noise_level)]
+		signal_noise = [
+			sig / nl 
+			for sig, nl in zip(self.maps.map_max, self.maps.noise_level)
+		]
 		fig = plt.figure(figsize=(10, 8))
 		ax = fig.add_subplot(1, 1, 1)
 		ax.set_title('Signal/noise distribution')
@@ -24,16 +30,21 @@ class Filter(object):
 
 	def weird_maps(self) -> set:
 		df = self.maps
-		weird_maps = []
-		for c_x, x, c_y, y, a, file in zip(df.mapc_x, df.map_max_x, df.mapc_y, df.map_max_y, df.obs_author, df.file_name):
-			if (abs(c_x - x) > 3 or abs(c_y - y) > 3) and a != 'Alan Marscher':
-				weird_maps.append(file)
+		weird_maps = [
+			file for c_x, x, c_y, y, a, file in
+			zip(df.mapc_x, df.map_max_x, df.mapc_y, 
+	   		df.map_max_y, df.obs_author, df.file_name)
+			if (abs(c_x - x) > 3 or abs(c_y - y) > 3) and a != 'Alan Marscher'
+		]
 		return set(weird_maps)
 
 	def maps_w_bad_signal_noise(self, ratio: int) -> dict:
-		signal_noise = {file: sig/nl 
-				 	for file, sig, nl in zip(self.maps.file_name, self.maps.map_max, self.maps.noise_level)
-					if sig/nl <= ratio}
+		df = self.maps
+		signal_noise = {
+			file: sig / nl for file, sig, nl in 
+			zip(df.file_name, df.map_max, df.noise_level)
+			if sig/nl <= ratio
+		}
 		return signal_noise
 	
 	def filter_df(self, ratio: int) -> None:
@@ -46,24 +57,77 @@ class Filter(object):
 			file_name = self.maps.loc[x, 'file_name']
 			if b_maj == -1 or b_min == -1 or file_name in bad_maps:
 				self.maps.drop(x, inplace=True)
+	
+	def _draw_map(self, ax: np.array, path: str, file_name: str) -> None:
+		dir = file_name.split('_')[0]
+		im = Image(f'{path}/{dir}/{file_name}')
+		data = im.map_data().squeeze()
+		ax.imshow(data, cmap=CMAP, origin='lower')
+		ax.set_title(im.object, loc=CENTER)
+	
+	def draw_dirty_maps(self, path: str, file_name: str) -> None:
+		step = 4
+		n = len(self.dirty_maps.keys())
+		left = len(self.dirty_maps.keys()) % step
+		files = list(self.dirty_maps.keys())
+		with PdfPages(f'{file_name}.pdf') as pdf:
+			for i in range(0, n-step, step):
+				fig, axes = plt.subplots(2, 2)
+				self._draw_map(axes[0][0], path, files[i])
+				self._draw_map(axes[0][1], path, files[i+1])
+				self._draw_map(axes[1][0], path, files[i+2])
+				self._draw_map(axes[1][1], path, files[i+3])
+				fig.tight_layout()
+				pdf.savefig()
+				plt.close(fig)
+			
+			for i in range(left, 0, -1):
+				fig, ax = plt.subplots(1)
+				self._draw_map(ax, path, files[-i])
+				fig.tight_layout()
+				pdf.savefig()
+				plt.close(fig)
 
 class BeamCluster(Filter):
-	# TODO: Convert bmaj, bmin from arcsecs to pixels, 
-	# 		bpa from degrees to radians. Then normalise and 
-	# 		then do clustering.
-	def __init__(self, df: pd.DataFrame) -> None:
-		Filter.__init__(self, df)
+	# Convert bmaj, bmin from degrees to arcsecs, to pixels, 
+	# bpa from degrees to radians. Then normalise and 
+	# then do clustering.
+	def __init__(self, df: pd.DataFrame, ratio: int) -> None:
+		Filter.__init__(self, df, ratio)
 		self.kmeans, self.X = None, None
 	
-	def _beam_clustering(self, n: int) -> None:
-		X = self.maps[['b_maj', 'b_min', 'b_pa']].to_numpy()
-		self.kmeans = KMeans(n_clusters=n, random_state=0, n_init='auto').fit(X)
+	def _preprocess(self) -> np.array:
+		freq_bands = {
+			'L': (1, 1.8), 'S': (1.8, 2.8), 'C': (2.8, 7), 'X': (7, 9),
+			'U': (9, 17), 'K': (17, 26), 'Q': (26, 50), 'W': (50, 100), 
+			'G': (100, 250)
+		}
+		pixel_size = self.maps['pixel_size_y'].to_numpy().T
+		b_maj = self.maps['b_maj'].to_numpy().T * 3.6e6 / pixel_size
+		b_min = self.maps['b_min'].to_numpy().T * 3.6e6 / pixel_size
+		b_pa = self.maps['b_pa'].to_numpy().T	
+		freqs = self.maps['freq'].to_numpy()
+
+		b_maj /= np.linalg.norm(b_maj)
+		b_min /= np.linalg.norm(b_min)
+		
+		bands = np.array([
+			label for freq in freqs for label, freq_band in freq_bands.items()
+			if freq_band[0] <= freq * 1e-9 and freq * 1e-9 <= freq_band[1] 
+		]).T
+
+		return np.stack([b_maj, b_min, b_pa, bands])
+	
+	def _beam_clustering(self, clusters: int) -> None:
+		X = self._preprocess()
+		kms = KMeans(n_clusters=clusters, random_state=0, n_init='auto')
+		self.kmeans = kms.fit(X)
 		labels = np.array([self.kmeans.labels_])
 		self.X = np.concatenate((X, labels.T), axis=1)
 
-	def beam_cluster_means(self, n: int) -> pd.DataFrame:
+	def beam_cluster_means(self, clusters: int) -> pd.DataFrame:
 		if self.X is None:
-			self._beam_clustering(n)
+			self._beam_clustering(clusters)
 		
 		data = self.X
 		means = {}
@@ -82,23 +146,30 @@ class BeamCluster(Filter):
 				means[label][i] /= count
 		
 		df = pd.DataFrame(means).T
-		df = df.rename(columns={0: 'b_maj', 1: 'b_min', 2: 'b_pa', 3: 'amount'})
+		df = df.rename(columns={
+			0: 'b_maj', 1: 'b_min', 2: 'b_pa', 3: 'amount'
+		})
 		df.index.name = 'Cluster'
 		df.amount = df.amount.astype(int)
 		for col in df.columns:
 			if col != 'amount':
-				df[col] = df[col].apply(lambda x: np.format_float_scientific(x, precision=2))
+				df[col] = df[col].apply(
+					lambda x: np.format_float_scientific(x, precision=2)
+				)
 		df.sort_index()
 		return df
 		
-	def draw_beam_clustering(self, n: int) -> None:
+	def draw_beam_clustering(self, clusters: int) -> None:
 		if self.kmeans is None or self.X is None:
-			self._beam_clustering(n)
+			self._beam_clustering(clusters)
 		X = self.X
 
 		fig = plt.figure()
 		ax = fig.add_subplot(projection='3d')
-		ax.scatter(X[:, 0] * 1e6, X[:, 1] * 1e6, X[:, 2], c=self.kmeans.labels_.astype(float))
+		ax.scatter(
+			X[:, 0] * 1e6, X[:, 1] * 1e6, X[:, 2], 
+			c=self.kmeans.labels_.astype(float)
+		)
 		ax.set_xlabel(r'b_maj, $10^6$ arcsec')
 		ax.set_ylabel(r'b_min, $10^6$ arcsec')
 		ax.set_zlabel('b_pa, degrees')

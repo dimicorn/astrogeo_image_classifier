@@ -133,4 +133,5 @@ MAJOR_AX = 'MAJOR AX' # Component major axis [degrees]
 MINOR_AX = 'MINOR AX' # Component minor axis [degrees]
 POSANGLE = 'POSANGLE' # Component position angle [degrees]
 TYPE_OBJ = 'TYPE OBJ' # Component type code
-# 0: point, 1: Gaussian, 2: convolved Gaussian, 3: uniform optically-thin sphere
+# 0: point, 1: Gaussian, 
+# 2: convolved Gaussian, 3: uniform optically-thin sphere

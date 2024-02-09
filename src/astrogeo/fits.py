@@ -20,7 +20,7 @@ class Fits(object):
 
     def sanity_check(self, f):
         if not f[PRIMARY].header[SIMPLE]:
-            # raise FitsError('Non standard Fits file', self.file_name)
+            # raise FitsError(...)
             print(f'Non standard Fits file {self.file_name}')
         
         header = f[PRIMARY].header
@@ -28,28 +28,35 @@ class Fits(object):
         file_name = self.file_name
         obj_name_2 = file_name.split('_')[0]
         if obj_name_1 != obj_name_2:
-            # raise FitsError('Object name does not correspond to one in file name', self.file_name)
-            print(f'Object name does not correspond to one in file name {self.file_name}')
+            # raise FitsError(...)
+            print('Object name does not correspond '
+                  f'to one in file name {self.file_name}')
         
         folder_name = self.file_name_w_path.split('/')[-2]
         if obj_name_1 != folder_name:
-            # raise FitsError(f'Object {obj_name_1} in the {folder_name}/ directory', self.file_name)
-            print(f'Object {obj_name_1} in the {folder_name}/ directory {self.file_name}')
+            # raise FitsError(...)
+            print(f'Object {obj_name_1} in the {folder_name}/ '
+                  f'directory {self.file_name}')
         
-        freq_bands = {'L': (1, 1.8), 'S': (1.8, 2.8), 'C': (2.8, 7), 'X': (7, 9), 'U': (9, 17), 'K': (17, 26),
-                  'Q': (26, 50), 'W': (50, 100), 'G': (100, 250)}
+        freq_bands = {
+            'L': (1, 1.8), 'S': (1.8, 2.8), 'C': (2.8, 7), 'X': (7, 9), 
+            'U': (9, 17), 'K': (17, 26), 'Q': (26, 50), 'W': (50, 100), 
+            'G': (100, 250)
+        }
         
         freq_band = file_name.split('_')[1]
         freq_lower, freq_upper = freq_bands[freq_band][0], freq_bands[freq_band][1]
         freq = self.get_freq() * 1e-9
         if not (freq_lower <= freq and freq <= freq_upper):
-            # raise FitsError(f'Wrong FREQ band ({freq_band}) in file name, frequency value {freq} GHz', self.file_name)
-            print(f'Wrong FREQ band ({freq_band}) in file name, frequency value {freq} GHz, {self.file_name}')
+            # raise FitsError(...)
+            print(f'Wrong FREQ band ({freq_band}) in file name, '
+                  f'frequency value {freq} GHz, {self.file_name}')
 
     def header_data(self) -> tuple:
         '''Reading PRIMARY table header'''
         header = self.hdulist[PRIMARY].header
-        return (header[OBJECT], header[DATE_OBS], self.get_freq(), header[AUTHOR], self.file_name.split('/')[-1])
+        return (header[OBJECT], header[DATE_OBS], self.get_freq(), 
+                header[AUTHOR], self.file_name.split('/')[-1])
 
     def get_freq(self) -> float:
         # FIXME: Refactor this plz
@@ -108,7 +115,9 @@ class UVFits(Fits):
             self.sanity_check(f)
             
             if len(f) < 3:
-                raise FitsError('Missing FQ or AN table in UV file', self.file_name)
+                raise FitsError(
+                    'Missing FQ or AN table in UV file', 
+                    self.file_name)
             elif len(f) == 3:
                 self._freq_header = f[AIPS_FQ].header
                 self._freq_data = f[AIPS_FQ].data
@@ -120,7 +129,8 @@ class UVFits(Fits):
                     self._antenna_data = f['AIPS NX'].data
                 self._an_tables = 1
             else:
-                # Assuming that other AN tables are the same, no need to store them
+                # Assuming that other AN tables are the same, 
+                # no need to store them
                 self._freq_header = f[AIPS_FQ].header
                 self._freq_data = f[AIPS_FQ].data
                 self._antenna_header = f[AIPS_AN].header
@@ -153,7 +163,8 @@ class UVFits(Fits):
                     try:
                         data['UU---SIN'], data['VV---SIN']
                         uu_key, vv_key = 'UU---SIN', 'VV---SIN'
-                    except KeyError: print(f'Caution: {self.file_name} has weird UU and VV keys')
+                    except KeyError: print(f'Caution: {self.file_name}'
+                                           'has weird UU and VV keys')
 
             if if_nums == 1:
                 for ind in range(gcount):
@@ -165,16 +176,20 @@ class UVFits(Fits):
             elif if_nums > 1:
                 for ind in range(gcount):
                     for if_num in range(if_nums):
-                        u = data[uu_key][ind] * (self.freq + if_freq[0][if_num])
-                        v = data[vv_key][ind] * (self.freq + if_freq[0][if_num])
+                        u = (data[uu_key][ind] * 
+                             (self.freq + if_freq[0][if_num]))
+                        v = (data[vv_key][ind] * 
+                             (self.freq + if_freq[0][if_num]))
                         uu.append(u)
                         vv.append(v)
             
-            vis = data.data[:, 0, 0, :, 0, 0, 0] + data.data[:, 0, 0, :, 0, 0, 1] * 1j
+            vis = (data.data[:, 0, 0, :, 0, 0, 0] + 
+                   data.data[:, 0, 0, :, 0, 0, 1] * 1j)
             ampl = np.absolute(vis).flatten()
             phase = np.angle(vis).flatten()
 
-            X = np.array([np.array(uu), np.array(vv), np.array(ampl), np.array(phase)])
+            X = np.array([np.array(uu), np.array(vv), 
+                          np.array(ampl), np.array(phase)])
             X_sym = np.copy(X)
             X_sym[0] = -1 * X_sym[0]
             X_sym[1] = -1 * X_sym[1]
@@ -191,12 +206,15 @@ class UVFits(Fits):
         radius = np.sqrt(self._X[0] * self._X[0] + self._X[1] * self._X[1])
         min_radius, max_radius = np.min(radius), np.max(radius)
         ampl = self._X[2]
-        ampl_data = (np.min(ampl), np.max(ampl), np.mean(ampl), np.median(ampl))
+        ampl_data = (np.min(ampl), np.max(ampl), 
+                     np.mean(ampl), np.median(ampl))
         freq_ch_sum = np.sum(self.uv_data_key_check(CH_WIDTH)) # freq band
         uv_quality = 'n/a'
         comment = uv_quality
 
-        data = header_data + (min_radius, max_radius, self._X.shape[1]) + ampl_data
+        data = (header_data + 
+                (min_radius, max_radius, self._X.shape[1]) + 
+                ampl_data)
         data += (freq_ch_sum, self._an_tables, uv_quality, comment)
         return data
 
@@ -240,9 +258,11 @@ class MapFits(Fits):
         return self._map_data
 
     def get_parameters(self) -> pd.DataFrame:
-        ''' get some parameters from a header: CRVAL, CRPIX, FREQ, SOURCE, DATE-OBS'''
+        ''' get some parameters from a header: 
+        CRVAL, CRPIX, FREQ, SOURCE, DATE-OBS '''
         header = self._map_header
-        keys = [CRPIX1, CRPIX2, CDELT1, CDELT2, NAXIS1, NAXIS2, BMAJ, BMIN, BPA,
+        keys = [CRPIX1, CRPIX2, CDELT1, CDELT2, 
+                NAXIS1, NAXIS2, BMAJ, BMIN, BPA,
                 OBJECT, DATE_OBS, CRVAL3]
         params = {key: np.array([header[key]]) for key in keys}
         params[CDELT1] *= 3.6e6
@@ -264,8 +284,10 @@ class MapFits(Fits):
     def get_sql_params(self) -> tuple:
         '''
         object_name, obs_date, freq, obs_author, file_name, 
-        map_max, mapc_x, mapc_y, map_max_x, map_max_y, map_max_x_mas, map_max_y_mas, noise_level, 
-        map_size_x, map_size_y, pixel_size_x, pixel_size_y, b_maj, b_min, b_pa, cc_tables, 
+        map_max, mapc_x, mapc_y, map_max_x, map_max_y, 
+        map_max_x_mas, map_max_y_mas, noise_level, 
+        map_size_x, map_size_y, pixel_size_x, pixel_size_y, 
+        b_maj, b_min, b_pa, cc_tables, 
         map_quality, comment
         '''
         header_data = self.header_data()
@@ -274,17 +296,23 @@ class MapFits(Fits):
         map_data = self.map_data().squeeze()
         map_max = self.header_key_check('DATAMAX')
         # map_max = np.max(map_data)
-        mapc_x, mapc_y = self.header_key_check(CRPIX1), self.header_key_check(CRPIX2)
+        mapc_x = self.header_key_check(CRPIX1)
+        mapc_y = self.header_key_check(CRPIX2)
         pixel_size_x = self.header_key_check(CDELT1) * 3.6e6
         pixel_size_y = self.header_key_check(CDELT2) * 3.6e6
         ind = np.argmax(map_data)
 
-        map_max_y, map_max_x = np.unravel_index(ind, map_data.shape) # строчки и столбцы
+        # строчки и столбцы
+        map_max_y, map_max_x = np.unravel_index(ind, map_data.shape) 
         noise_level = self.map_noise(map_data)
-        map_max_x_mas, map_max_y_mas = map_max_x * pixel_size_x, map_max_y * pixel_size_y
-        noise = (map_max, mapc_x, mapc_y, map_max_x, map_max_y, map_max_x_mas, map_max_y_mas, noise_level)
+        map_max_x_mas = map_max_x * pixel_size_x
+        map_max_y_mas = map_max_y * pixel_size_y
+        noise = (map_max, mapc_x, mapc_y,
+                 map_max_x, map_max_y, map_max_x_mas, map_max_y_mas,
+                 noise_level)
 
-        map_size_x, map_size_y = self.header_key_check(NAXIS1), self.header_key_check(NAXIS2)
+        map_size_x = self.header_key_check(NAXIS1)
+        map_size_y = self.header_key_check(NAXIS2)
         bmaj = self.header_key_check(BMAJ)
         bmin = self.header_key_check(BMIN)
         bpa = self.header_key_check(BPA)
@@ -300,7 +328,8 @@ class MapFits(Fits):
     def get_models(self) -> pd.DataFrame:
         models = pd.DataFrame()
         keys = [FLUX, DELTAX, DELTAY, MAJOR_AX, MINOR_AX, POSANGLE, TYPE_OBJ]
-        new_keys = [FLUX, DELTAX, DELTAY, 'MAJOR_AX', 'MINOR_AX', POSANGLE, 'TYPE_OBJ']
+        new_keys = [FLUX, DELTAX, DELTAY, 
+                    'MAJOR_AX', 'MINOR_AX', POSANGLE, 'TYPE_OBJ']
         
         # If multiple CC tables, using the first one
         field_num = self._cc_header[TFIELDS]
@@ -308,5 +337,6 @@ class MapFits(Fits):
             models[new_key] = self._cc_data[key].tolist()
 
         if not (field_num == 7 or field_num == 3):
-            raise FitsError('Wrong number of columns in CC table', self.file_name)
+            raise FitsError(
+                'Wrong number of columns in CC table', self.file_name)
         return models

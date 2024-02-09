@@ -58,8 +58,16 @@ class Image(UVFits, MapFits):
         inl, outl = np.array(inl), np.array(outl)
 
         fig, ax = plt.subplots()
-        ax.scatter(inl[:, 0] * 1e-6, inl[:, 1] * 1e-6, marker=DOT, color='b', label='Inliers')
-        ax.scatter(outl[:, 0] * 1e-6, outl[:, 1] * 1e-6, marker=DOT, color='r', label='Outliers')
+        ax.scatter(
+            inl[:, 0] * 1e-6,
+            inl[:, 1] * 1e-6,
+            marker=DOT, color='b', label='Inliers'
+        )
+        ax.scatter(
+            outl[:, 0] * 1e-6,
+            outl[:, 1] * 1e-6,
+            marker=DOT, color='r', label='Outliers'
+        )
         # plot circles with radius proportional to the outlier scores
         # radius = abs(np.mean(scores) - scores) / np.std(scores)
         radius = (np.max(scores) - scores) / (np.max(scores) - np.min(scores))
@@ -72,7 +80,11 @@ class Image(UVFits, MapFits):
         )
         ax.axis('tight')
         ax.legend(
-            handler_map={scatter: HandlerPathCollection(update_func=self._update_legend_marker_size)}
+            handler_map={
+                scatter: HandlerPathCollection(
+                    update_func=self._update_legend_marker_size
+                )
+            }
         )
         ax.set_title(self.object, loc=CENTER)
         ax.set_title(self.date, loc=LEFT)
@@ -100,8 +112,18 @@ class Image(UVFits, MapFits):
         
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
-        ax.scatter(inl[:, 0] * 1e-6, inl[:, 1] * 1e-6, inl[:, 2], marker=DOT, color='b', label='Inliers')
-        ax.scatter(outl[:, 0] * 1e-6, outl[:, 1] * 1e-6, outl[:, 2], marker=DOT, color='r', label='Outliers')
+        ax.scatter(
+            inl[:, 0] * 1e-6,
+            inl[:, 1] * 1e-6,
+            inl[:, 2],
+            marker=DOT, color='b', label='Inliers'
+        )
+        ax.scatter(
+            outl[:, 0] * 1e-6,
+            outl[:, 1] * 1e-6,
+            outl[:, 2],
+            marker=DOT, color='r', label='Outliers'
+        )
         # plot circles with radius proportional to the outlier scores
         # radius = abs(np.mean(scores) - scores) / np.std(scores)
         radius = (np.max(scores) - scores) / (np.max(scores) - np.min(scores))
@@ -114,7 +136,11 @@ class Image(UVFits, MapFits):
         )
         ax.axis('tight')
         ax.legend(
-            handler_map={scatter: HandlerPathCollection(update_func=self._update_legend_marker_size)}
+            handler_map={
+                scatter: HandlerPathCollection(
+                    update_func=self._update_legend_marker_size
+                )
+            }
         )
         ax.set_title(self.object, loc=CENTER)
         ax.set_title(self.date, loc=LEFT)
@@ -130,7 +156,11 @@ class Image(UVFits, MapFits):
         X = self.uv_data()
         fig = plt.figure()
         ax = fig.add_subplot()
-        ax.scatter(np.sqrt(np.square(X[0]) + np.square(X[1])) * 1e-6, X[3], marker='.')
+        ax.scatter(
+            np.sqrt(np.square(X[0]) + np.square(X[1])) * 1e-6,
+            X[3],
+            marker='.'
+        )
         ax.set_xlabel(r'$R = \sqrt{U^2 + V^2}$ Baseline radius (M$\lambda$)')
         ax.set_ylabel(r'$\varphi$ phase, radians')
         ax.set_title(self.object, loc=CENTER)
@@ -141,7 +171,11 @@ class Image(UVFits, MapFits):
         X = self.uv_data()
         fig = plt.figure()
         ax = fig.add_subplot()
-        ax.scatter(np.sqrt(np.square(X[0]) + np.square(X[1])) * 1e-6, X[2], marker='.')
+        ax.scatter(
+            np.sqrt(np.square(X[0]) + np.square(X[1])) * 1e-6,
+            X[2],
+            marker='.'
+        )
         ax.set_title(self.object, loc=CENTER)
         ax.set_xlabel(r'$R = \sqrt{U^2 + V^2}$ Baseline radius (M$\lambda$)')
         ax.set_ylabel('Amplitude, Jy')
@@ -165,5 +199,6 @@ class Image(UVFits, MapFits):
         ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
 
         map_plot_name = self.file_name[:-9]
-        fig.savefig(f'{MAP_DIR}/{map_plot_name}.png', dpi=500) # {MAP_DIR}/{map_plot_name}
+        # {MAP_DIR}/{map_plot_name}
+        fig.savefig(f'{MAP_DIR}/{map_plot_name}.png', dpi=500)
         plt.close(fig)
