@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import unit_impulse, convolve2d
@@ -88,12 +89,15 @@ class Beams(object):
         return gauss
 
     def draw_beam(self, beam: np.array, filename: str) -> None:
+        test_dir = 'src/astrogeo/test'
+        if not os.path.exists(test_dir):
+            os.makedirs(test_dir)
         fig, ax = plt.subplots(figsize=(10, 8))
         im = ax.imshow(beam, interpolation='none', origin='lower')
         ax.set_xlabel('x [pixels]')
         ax.set_ylabel('y [pixels]')
         fig.colorbar(im)
-        fig.savefig(f'src/synthetic/test/{filename}', dpi=500)
+        fig.savefig(f'{test_dir}/{filename}', dpi=500)
         plt.close(fig)
     
     def conv(self, model: np.array, kernel: np.array) -> np.array:

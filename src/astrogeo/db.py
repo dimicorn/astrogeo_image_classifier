@@ -4,8 +4,8 @@ import numpy as np
 import psycopg2
 from psycopg2.extensions import register_adapter, AsIs
 from types import SimpleNamespace as sn
-from fits import UVFits, MapFits
-from consts import MAP_FITS, VIS_FITS
+from astrogeo.fits import UVFits, MapFits
+from astrogeo.consts import MAP_FITS, VIS_FITS
 
 
 register_adapter(np.float32, AsIs)

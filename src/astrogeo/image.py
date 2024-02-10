@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 from matplotlib.legend_handler import HandlerPathCollection
 from sklearn.neighbors import LocalOutlierFactor as lof
 import numpy as np
-from consts import *
-from fits import UVFits, MapFits, FitsError
+from astrogeo.consts import *
+from astrogeo.fits import UVFits, MapFits, FitsError
 
 
 class Image(UVFits, MapFits):
@@ -15,6 +15,9 @@ class Image(UVFits, MapFits):
             MapFits.__init__(self, file_name)
         else:
             raise FitsError('Wrong extension of file', self.file_name)
+        self.test_dir = 'src/astrogeo/test'
+        if not os.path.exists(self.test_dir):
+            os.makedirs(self.test_dir)
 
     def draw_uv(self) -> None:
         # checking if directory for UV plots exists, if not creates it
@@ -92,7 +95,7 @@ class Image(UVFits, MapFits):
         ax.set_xlabel(r'U Baseline projection (M$\lambda$)')
         ax.set_ylabel(r'V Baseline projection (M$\lambda$)')
         lof_plot_name = self.file_name[:-9]
-        plt.savefig(f'test/test_lof_2d.png', dpi=500)
+        plt.savefig(f'{self.test_dir}/test_lof_2d.png', dpi=500)
         plt.close(fig)
     
     def draw_uv_3d(self) -> None:
@@ -149,7 +152,7 @@ class Image(UVFits, MapFits):
         ax.set_ylabel(r'V Baseline projection (M$\lambda$)')
         ax.set_zlabel('Amplitude, Jy')
         lof_plot_name = self.file_name[:-9]
-        plt.savefig(f'test/test_lof_3d.png', dpi=500)
+        plt.savefig(f'{self.test_dir}/test_lof_3d.png', dpi=500)
         plt.close(fig)
     
     def draw_phase_radius(self) -> None:
@@ -164,7 +167,7 @@ class Image(UVFits, MapFits):
         ax.set_xlabel(r'$R = \sqrt{U^2 + V^2}$ Baseline radius (M$\lambda$)')
         ax.set_ylabel(r'$\varphi$ phase, radians')
         ax.set_title(self.object, loc=CENTER)
-        plt.savefig(f'test/test_phase_radius.png', dpi=500)
+        plt.savefig(f'{self.test_dir}/test_phase_radius.png', dpi=500)
         plt.close(fig)
     
     def draw_ampl_radius(self) -> None:
@@ -179,7 +182,7 @@ class Image(UVFits, MapFits):
         ax.set_title(self.object, loc=CENTER)
         ax.set_xlabel(r'$R = \sqrt{U^2 + V^2}$ Baseline radius (M$\lambda$)')
         ax.set_ylabel('Amplitude, Jy')
-        plt.savefig(f'test/test_ampl_radius.png', dpi=500)
+        plt.savefig(f'{self.test_dir}/test_ampl_radius.png', dpi=500)
         plt.close(fig)
 
     def draw_map(self) -> None:

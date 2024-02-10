@@ -1,11 +1,12 @@
+import os
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from sklearn.cluster import KMeans
-from image import Image
-from consts import CENTER, CMAP
+from astrogeo.image import Image
+from astrogeo.consts import CENTER, CMAP
 
 
 class Filter(object):
@@ -16,6 +17,10 @@ class Filter(object):
 		self.filter_df(ratio)
 	
 	def draw_sn_dist(self) -> None:
+		test_dir = 'src/astrogeo/test'
+		if not os.path.exists(test_dir):
+			os.makedirs(test_dir)
+		
 		signal_noise = [
 			sig / nl 
 			for sig, nl in zip(self.maps.map_max, self.maps.noise_level)
@@ -26,7 +31,7 @@ class Filter(object):
 		sns.histplot(signal_noise)
 		ax.set_xlabel('Signal-noise ratio')
 		ax.set_ylabel('Number')
-		plt.savefig('src/astrogeo/test/signal_noise_dist.png', dpi=500)
+		plt.savefig(f'{test_dir}/signal_noise_dist.png', dpi=500)
 		plt.close(fig)
 
 	def find_weird_maps(self) -> set:
@@ -128,10 +133,13 @@ class Filter(object):
 				plt.close(fig)
 
 class BeamCluster(Filter):
+	test_dir = 'src/astrogeo/test'
 	def __init__(self, df: pd.DataFrame, ratio: int) -> None:
 		Filter.__init__(self, df, ratio)
 		self.kmeans, self.X = None, None
 		self.b_maj, self.b_min = None, None
+		if not os.path.exists(self.test_dir):
+			os.makedirs(self.test_dir)
 	
 	def _preprocess(self) -> np.array:
 		pixel_size = self.maps['pixel_size_y'].to_numpy().T
@@ -179,14 +187,14 @@ class BeamCluster(Filter):
 				df[col] = df[col].apply(
 					lambda x: np.format_float_scientific(x, precision=2)
 				)
-		df.sort_index()
-		return df
+		return df.sort_index()
 		
 	def draw_beam_clustering(self, clusters: int) -> None:
 		if self.kmeans is None or self.X is None:
 			self._beam_clustering(clusters)
 		X = self.X
-
+		test_dir = self.test_dir
+		
 		fig = plt.figure()
 		ax = fig.add_subplot(projection='3d')
 		ax.scatter(
@@ -196,28 +204,28 @@ class BeamCluster(Filter):
 		ax.set_xlabel('Beam MAJ [pixels]')
 		ax.set_ylabel('Beam MIN [pixels]')
 		ax.set_zlabel('Beam PA [degrees]')
-		plt.savefig('src/astrogeo/test/beam_3d.png', dpi=500)
+		plt.savefig(f'{test_dir}/beam_3d.png', dpi=500)
 		plt.close(fig)
 
 		fig, ax = plt.subplots()
 		ax.scatter(X[:, 0], X[:, 1], c=self.kmeans.labels_.astype(float))
 		ax.set_xlabel('Beam MAJ [pixels]')
 		ax.set_ylabel('Beam MIN [pixels]')
-		plt.savefig('src/astrogeo/test/beam_maj_min.png', dpi=500)
+		plt.savefig(f'{test_dir}/beam_maj_min.png', dpi=500)
 		plt.close(fig)
 
 		fig, ax = plt.subplots()
 		ax.scatter(X[:, 1], X[:, 2], c=self.kmeans.labels_.astype(float))
 		ax.set_xlabel('Beam MIN [pixels]')
 		ax.set_ylabel('Beam PA [pixels]')
-		plt.savefig('src/astrogeo/test/beam_min_pa.png', dpi=500)
+		plt.savefig(f'{test_dir}/beam_min_pa.png', dpi=500)
 		plt.close(fig)
 
 		fig, ax = plt.subplots()
 		ax.scatter(X[:, 2], X[:, 0], c=self.kmeans.labels_.astype(float))
 		ax.set_xlabel('Beam PA [pixels]')
 		ax.set_ylabel('Beam MAJ [pixels]')
-		plt.savefig('src/astrogeo/test/beam_pa_min.png', dpi=500)
+		plt.savefig(f'{test_dir}/beam_pa_min.png', dpi=500)
 		plt.close(fig)
 	
 	def draw_b_min_dist(self) -> None:
@@ -231,7 +239,7 @@ class BeamCluster(Filter):
 		ax.set_xlabel('B_MIN [pixels]')
 		ax.set_ylabel('Number')
 		ax.set_xlim(0, 50)
-		plt.savefig('test/beam_min_dist.png', dpi=500)
+		plt.savefig(f'{self.test_dir}/beam_min_dist.png', dpi=500)
 		plt.close(fig)
 	
 	def draw_b_maj_dist(self) -> None:
@@ -245,7 +253,7 @@ class BeamCluster(Filter):
 		ax.set_xlabel('B_MAJ [pixels]')
 		ax.set_ylabel('Number')
 		ax.set_xlim(0, 100)
-		plt.savefig('test/beam_maj_dist.png', dpi=500)
+		plt.savefig(f'{self.test_dir}/beam_maj_dist.png', dpi=500)
 		plt.close(fig)
 	
 	def draw_b_pa_dist(self) -> None:
@@ -256,5 +264,5 @@ class BeamCluster(Filter):
 		ax.hist(X, bins=100)
 		ax.set_xlabel('B_PA [degrees]')
 		ax.set_ylabel('Number')
-		plt.savefig('test/beam_pa_dist.png', dpi=500)
+		plt.savefig(f'{self.test_dir}/beam_pa_dist.png', dpi=500)
 		plt.close(fig)

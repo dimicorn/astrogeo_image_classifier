@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.io import fits
-from consts import *
 import pandas as pd
+from astrogeo.consts import *
 
 
 class FitsError(Exception):
