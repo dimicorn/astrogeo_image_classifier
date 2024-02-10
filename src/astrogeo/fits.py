@@ -252,6 +252,7 @@ class MapFits(Fits):
         
         self.date = self._map_header[DATE_OBS]
         self.object = self._map_header[OBJECT]
+        self.author = self._map_header[AUTHOR]
         self.freq = self.get_freq()
 
     def map_data(self):

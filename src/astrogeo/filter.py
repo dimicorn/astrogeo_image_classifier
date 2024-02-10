@@ -11,7 +11,8 @@ from consts import CENTER, CMAP
 class Filter(object):
 	def __init__(self, df: pd.DataFrame, ratio: int) -> None:
 		self.maps = df
-		self.dirty_maps = None
+		self.dirty_maps, self.weird_maps = None, None
+		self.filtered_maps = None
 		self.filter_df(ratio)
 	
 	def draw_sn_dist(self) -> None:
@@ -25,10 +26,11 @@ class Filter(object):
 		sns.histplot(signal_noise)
 		ax.set_xlabel('Signal-noise ratio')
 		ax.set_ylabel('Number')
-		plt.savefig('signal_noise_dist.png', dpi=500)
+		plt.savefig('src/astrogeo/test/signal_noise_dist.png', dpi=500)
 		plt.close(fig)
 
-	def weird_maps(self) -> set:
+	def find_weird_maps(self) -> set:
+		# FIXME: change pixel difference
 		df = self.maps
 		weird_maps = [
 			file for c_x, x, c_y, y, a, file in
@@ -37,7 +39,10 @@ class Filter(object):
 			if (abs(c_x - x) > 3 or abs(c_y - y) > 3) and a != 'Alan Marscher'
 		]
 		return set(weird_maps)
-
+	
+	def uv_data_len(self) -> set:
+		...
+	
 	def maps_w_bad_signal_noise(self, ratio: int) -> dict:
 		df = self.maps
 		signal_noise = {
@@ -48,28 +53,32 @@ class Filter(object):
 		return signal_noise
 	
 	def filter_df(self, ratio: int) -> None:
-		wm = self.weird_maps()
+		self.weird_maps = self.find_weird_maps()
 		self.dirty_maps = self.maps_w_bad_signal_noise(ratio)
-		bad_maps = wm.union(self.dirty_maps)
+		self.filtered_maps = self.weird_maps.union(self.dirty_maps)
 
 		for x in self.maps.index:
 			b_maj, b_min = self.maps.loc[x, 'b_maj'], self.maps.loc[x, 'b_min']
 			file_name = self.maps.loc[x, 'file_name']
-			if b_maj == -1 or b_min == -1 or file_name in bad_maps:
+			pixel_size = self.maps.loc[x, 'pixel_size_y']
+			if (b_maj == -1 or b_min == -1 or 
+	   			file_name in self.filtered_maps or
+				b_maj * 3.6e6 / pixel_size > 1000):
 				self.maps.drop(x, inplace=True)
 	
-	def _draw_map(self, ax: np.array, path: str, file_name: str) -> None:
+	def _draw_map(self, ax: np.array, path: str, file_name: str) -> Image:
 		dir = file_name.split('_')[0]
 		im = Image(f'{path}/{dir}/{file_name}')
 		data = im.map_data().squeeze()
 		ax.imshow(data, cmap=CMAP, origin='lower')
 		ax.set_title(im.object, loc=CENTER)
+		return im
 	
 	def draw_dirty_maps(self, path: str, file_name: str) -> None:
 		step = 4
 		n = len(self.dirty_maps.keys())
-		left = len(self.dirty_maps.keys()) % step
-		files = list(self.dirty_maps.keys())
+		left = n % step
+		files = sorted(list(self.dirty_maps.keys()))
 		with PdfPages(f'{file_name}.pdf') as pdf:
 			for i in range(0, n-step, step):
 				fig, axes = plt.subplots(2, 2)
@@ -87,43 +96,57 @@ class Filter(object):
 				fig.tight_layout()
 				pdf.savefig()
 				plt.close(fig)
+	
+	def _draw_map_w_author(
+			self, ax: np.array, path: str, file_name: str
+		) -> None:
+		im = self._draw_map(ax, path, file_name)
+		ax.set_title(f'{im.object}_{im.author}', loc=CENTER)
+	
+	def draw_filtered_maps(self, path: str, file_name: str) -> None:
+		step = 4
+		maps = self.filtered_maps
+		n = len(maps)
+		left = n % step
+		files = sorted(list(maps))
+		with PdfPages(f'{file_name}.pdf') as pdf:
+			for i in range(0, n-step, step):
+				fig, axes = plt.subplots(2, 2)
+				self._draw_map_w_author(axes[0][0], path, files[i])
+				self._draw_map_w_author(axes[0][1], path, files[i+1])
+				self._draw_map_w_author(axes[1][0], path, files[i+2])
+				self._draw_map_w_author(axes[1][1], path, files[i+3])
+				fig.tight_layout()
+				pdf.savefig()
+				plt.close(fig)
+			
+			for i in range(left, 0, -1):
+				fig, ax = plt.subplots(1)
+				self._draw_map_w_author(ax, path, files[-i])
+				fig.tight_layout()
+				pdf.savefig()
+				plt.close(fig)
 
 class BeamCluster(Filter):
-	# Convert bmaj, bmin from degrees to arcsecs, to pixels, 
-	# bpa from degrees to radians. Then normalise and 
-	# then do clustering.
 	def __init__(self, df: pd.DataFrame, ratio: int) -> None:
 		Filter.__init__(self, df, ratio)
 		self.kmeans, self.X = None, None
+		self.b_maj, self.b_min = None, None
 	
 	def _preprocess(self) -> np.array:
-		freq_bands = {
-			'L': (1, 1.8), 'S': (1.8, 2.8), 'C': (2.8, 7), 'X': (7, 9),
-			'U': (9, 17), 'K': (17, 26), 'Q': (26, 50), 'W': (50, 100), 
-			'G': (100, 250)
-		}
 		pixel_size = self.maps['pixel_size_y'].to_numpy().T
-		b_maj = self.maps['b_maj'].to_numpy().T * 3.6e6 / pixel_size
-		b_min = self.maps['b_min'].to_numpy().T * 3.6e6 / pixel_size
-		b_pa = self.maps['b_pa'].to_numpy().T	
-		freqs = self.maps['freq'].to_numpy()
+		self.b_maj = self.maps['b_maj'].to_numpy().T * 3.6e6 / pixel_size
+		self.b_min = self.maps['b_min'].to_numpy().T * 3.6e6 / pixel_size
+		self.b_pa = self.maps['b_pa'].to_numpy().T
 
-		b_maj /= np.linalg.norm(b_maj)
-		b_min /= np.linalg.norm(b_min)
-		
-		bands = np.array([
-			label for freq in freqs for label, freq_band in freq_bands.items()
-			if freq_band[0] <= freq * 1e-9 and freq * 1e-9 <= freq_band[1] 
-		]).T
-
-		return np.stack([b_maj, b_min, b_pa, bands])
+		return np.stack([self.b_maj, self.b_min, self.b_pa])
 	
 	def _beam_clustering(self, clusters: int) -> None:
 		X = self._preprocess()
 		kms = KMeans(n_clusters=clusters, random_state=0, n_init='auto')
-		self.kmeans = kms.fit(X)
+		self.kmeans = kms.fit(X.T)
 		labels = np.array([self.kmeans.labels_])
-		self.X = np.concatenate((X, labels.T), axis=1)
+		self.X = np.concatenate((X.T, labels.T), axis=1)
 
 	def beam_cluster_means(self, clusters: int) -> pd.DataFrame:
 		if self.X is None:
@@ -146,9 +169,9 @@ class BeamCluster(Filter):
 				means[label][i] /= count
 		
 		df = pd.DataFrame(means).T
-		df = df.rename(columns={
-			0: 'b_maj', 1: 'b_min', 2: 'b_pa', 3: 'amount'
-		})
+		df = df.rename(
+			columns={0: 'b_maj', 1: 'b_min', 2: 'b_pa', 3: 'amount'}
+		)
 		df.index.name = 'Cluster'
 		df.amount = df.amount.astype(int)
 		for col in df.columns:
@@ -167,46 +190,71 @@ class BeamCluster(Filter):
 		fig = plt.figure()
 		ax = fig.add_subplot(projection='3d')
 		ax.scatter(
-			X[:, 0] * 1e6, X[:, 1] * 1e6, X[:, 2], 
+			X[:, 0], X[:, 1], X[:, 2], 
 			c=self.kmeans.labels_.astype(float)
 		)
-		ax.set_xlabel(r'b_maj, $10^6$ arcsec')
-		ax.set_ylabel(r'b_min, $10^6$ arcsec')
-		ax.set_zlabel('b_pa, degrees')
-		plt.savefig(f'beam_3d.png', dpi=500)
+		ax.set_xlabel('Beam MAJ [pixels]')
+		ax.set_ylabel('Beam MIN [pixels]')
+		ax.set_zlabel('Beam PA [degrees]')
+		plt.savefig('src/astrogeo/test/beam_3d.png', dpi=500)
+		plt.close(fig)
+
+		fig, ax = plt.subplots()
+		ax.scatter(X[:, 0], X[:, 1], c=self.kmeans.labels_.astype(float))
+		ax.set_xlabel('Beam MAJ [pixels]')
+		ax.set_ylabel('Beam MIN [pixels]')
+		plt.savefig('src/astrogeo/test/beam_maj_min.png', dpi=500)
+		plt.close(fig)
+
+		fig, ax = plt.subplots()
+		ax.scatter(X[:, 1], X[:, 2], c=self.kmeans.labels_.astype(float))
+		ax.set_xlabel('Beam MIN [pixels]')
+		ax.set_ylabel('Beam PA [pixels]')
+		plt.savefig('src/astrogeo/test/beam_min_pa.png', dpi=500)
+		plt.close(fig)
+
+		fig, ax = plt.subplots()
+		ax.scatter(X[:, 2], X[:, 0], c=self.kmeans.labels_.astype(float))
+		ax.set_xlabel('Beam PA [pixels]')
+		ax.set_ylabel('Beam MAJ [pixels]')
+		plt.savefig('src/astrogeo/test/beam_pa_min.png', dpi=500)
 		plt.close(fig)
 	
 	def draw_b_min_dist(self) -> None:
-		X = self.maps[['b_min']].to_numpy()
+		if self.b_min is None:
+			self._preprocess()
+		X = self.b_min
 		fig = plt.figure(figsize=(10, 8))
 		ax = fig.add_subplot(1, 1, 1)
 		ax.set_title('Beam MIN distribution')
-		sns.histplot(X * 1e6)
-		ax.set_xlabel('B_MIN')
+		ax.hist(X[np.where(X < 500)], bins=1000)
+		ax.set_xlabel('B_MIN [pixels]')
 		ax.set_ylabel('Number')
-		ax.set_xlim(0, 10)
+		ax.set_xlim(0, 50)
 		plt.savefig('test/beam_min_dist.png', dpi=500)
 		plt.close(fig)
 	
 	def draw_b_maj_dist(self) -> None:
-		X = self.maps[['b_maj']].to_numpy()
+		if self.b_maj is None:
+			self._preprocess()
+		X = self.b_maj
 		fig = plt.figure(figsize=(10, 8))
 		ax = fig.add_subplot(1, 1, 1)
 		ax.set_title('Beam MAJ distribution')
-		sns.histplot(X * 1e6)
-		ax.set_xlabel('B_MAJ')
+		ax.hist(X[np.where(X < 500)], bins=1000)
+		ax.set_xlabel('B_MAJ [pixels]')
 		ax.set_ylabel('Number')
-		ax.set_xlim(0, 10)
+		ax.set_xlim(0, 100)
 		plt.savefig('test/beam_maj_dist.png', dpi=500)
 		plt.close(fig)
 	
 	def draw_b_pa_dist(self) -> None:
-		X = self.maps[['b_pa']].to_numpy()
+		X = self.b_pa
 		fig = plt.figure(figsize=(10, 8))
 		ax = fig.add_subplot(1, 1, 1)
 		ax.set_title('Beam PA distribution')
-		sns.histplot(X)
-		ax.set_xlabel('B_PA')
+		ax.hist(X, bins=100)
+		ax.set_xlabel('B_PA [degrees]')
 		ax.set_ylabel('Number')
 		plt.savefig('test/beam_pa_dist.png', dpi=500)
 		plt.close(fig)

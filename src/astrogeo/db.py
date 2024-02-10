@@ -1,10 +1,11 @@
 import os
 import json
-from fits import UVFits, MapFits
-from consts import MAP_FITS, VIS_FITS
 import numpy as np
 import psycopg2
 from psycopg2.extensions import register_adapter, AsIs
+from types import SimpleNamespace as sn
+from fits import UVFits, MapFits
+from consts import MAP_FITS, VIS_FITS
 
 
 register_adapter(np.float32, AsIs)
@@ -12,11 +13,11 @@ register_adapter(np.int64, AsIs)
 
 
 class Table(object):
-    def __init__(self, config, table_name) -> None:
-        self.host = config['host']
-        self.user = config['user']
-        self.dbname = config['dbname']
-        self.psswd = config['psswd']
+    def __init__(self, config: sn, table_name: str) -> None:
+        self.host = config.host
+        self.user = config.user
+        self.dbname = config.dbname
+        self.psswd = config.psswd
         self.table_name = table_name
 
         self.conn, self.cur = None, None
@@ -38,9 +39,7 @@ class Table(object):
         self.conn.commit()
     
     def close_table(self) -> None:
-        """
-        Written just in case, probably will not be used
-        """
+        '''Written just in case, probably will not be used'''
         if not self.conn:
             self.cur.close()
             self.conn.close()
@@ -102,10 +101,11 @@ class OurMaps(Table):
         self.conn.commit()
 
 class FillTable(object):
-	master_maps, master_uvs = 'src/master_maps.txt', 'src/master_uvs.txt'
+	master_maps = 'src/astrogeo/master_maps.txt'
+	master_uvs = 'src/astrogeo/master_uvs.txt'
 	
-	def __init__(self, config) -> None:
-		self.data_path, self.config_db = config['path'], config['db']
+	def __init__(self, config: sn) -> None:
+		self.data_path, self.config_db = config.path, config.db
 		self.maps, self.uvs = self.get_all_files()
 	
 	def get_all_files(self) -> tuple:
@@ -125,10 +125,10 @@ class FillTable(object):
 		m.close()
 		uv.close()
 	
-		with open('src/map_files.json', 'w') as f:
+		with open('src/astrogeo/map_files.json', 'w') as f:
 			json.dump(map_files, f)
 	
-		with open('src/uv_files.json', 'w') as f:
+		with open('src/astrogeo/uv_files.json', 'w') as f:
 			json.dump(uv_files, f)
 		return (map_files, uv_files)
 	
