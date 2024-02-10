@@ -10,3 +10,5 @@ legacy/*.png
 *.log
 *.txt
 *.json
+*.csv
+gen/

@@ -68,7 +68,7 @@ class Filter(object):
 			pixel_size = self.maps.loc[x, 'pixel_size_y']
 			if (b_maj == -1 or b_min == -1 or 
 	   			file_name in self.filtered_maps or
-				b_maj * 3.6e6 / pixel_size > 1000):
+				b_maj * 3.6e6 / pixel_size > 60):
 				self.maps.drop(x, inplace=True)
 	
 	def _draw_map(self, ax: np.array, path: str, file_name: str) -> Image:
@@ -187,6 +187,7 @@ class BeamCluster(Filter):
 				df[col] = df[col].apply(
 					lambda x: np.format_float_scientific(x, precision=2)
 				)
+		df = df.astype(float)
 		return df.sort_index()
 		
 	def draw_beam_clustering(self, clusters: int) -> None:

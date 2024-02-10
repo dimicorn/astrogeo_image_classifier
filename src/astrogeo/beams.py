@@ -1,7 +1,9 @@
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.signal import unit_impulse, convolve2d
+from matplotlib.backends.backend_pdf import PdfPages
 from skimage.draw import line
 
 
@@ -9,8 +11,9 @@ def sqr(x: float) -> float: return x * x
 
 class Beams(object):
     rgb = 255
-    def __init__(self, shape: tuple) -> None:
+    def __init__(self, shape: tuple = (128, 128)) -> None:
         self.shape = shape
+        self.kernels = None
     
     def point_beam(self, point: tuple = (0, 0)) -> np.array:
         coords = (point[0] + self.shape[0]//2, point[1] + self.shape[1]//2)
@@ -21,7 +24,8 @@ class Beams(object):
         ) -> np.array:
         x0, y0 = point
         point2 = (int(x0 + d * np.sin(alpha)), int(y0 + d * np.cos(alpha)))
-        return self.point_beam(point) + self.point_beam(point2)
+        two_points = self.point_beam(point) + self.point_beam(point2)
+        return two_points / np.max(two_points) * self.rgb
     
     def gauss_beam(
             self, b_maj: int, b_min: int, b_pa: float, 
@@ -88,22 +92,25 @@ class Beams(object):
         gauss[x, y] = self.rgb
         return gauss
 
-    def draw_beam(self, beam: np.array, filename: str) -> None:
-        test_dir = 'src/astrogeo/test'
-        if not os.path.exists(test_dir):
-            os.makedirs(test_dir)
+    def draw_beam(self, beam: np.array, filename: str, path: str = None) -> None:
+        if path is None:
+            path = 'src/astrogeo/test'
+        if not os.path.exists(path):
+            os.makedirs(path)
+        
         fig, ax = plt.subplots(figsize=(10, 8))
         im = ax.imshow(beam, interpolation='none', origin='lower')
         ax.set_xlabel('x [pixels]')
         ax.set_ylabel('y [pixels]')
         fig.colorbar(im)
-        fig.savefig(f'{test_dir}/{filename}', dpi=500)
+        fig.savefig(f'{path}/{filename}', dpi=500)
         plt.close(fig)
     
     def conv(self, model: np.array, kernel: np.array) -> np.array:
-        return convolve2d(model, kernel)
+        c = convolve2d(model, kernel, mode='same')
+        return c / np.max(c) * self.rgb
     
-    def test_beams(self) -> None:
+    def test_beams(self) -> list:
         d, alpha = self.shape[0]//4, np.pi/4
         b_maj, b_min, b_pa = 15, 10, np.pi/4
         b_maj2, b_min2, b_pa2 = 8, 8, 0
@@ -118,6 +125,10 @@ class Beams(object):
             self.gauss_w_two_jets_beam(b_maj, b_min, b_pa, d, alpha),
             self.gauss_w_spiral_beam(b_maj, b_min, b_pa, v, c, w, alpha)
         ]
+        return beams
+    
+    def draw_test_beams(self) -> None:
+        beams = self.test_beams()
         file_names = ['point_beam.png', 'two_point_beam.png',
                       'gauss_beam.png',  'two_gauss_beam.png', 
                       'gauss_w_jet_beam.png', 'gauss_w_two_jets_beam.png',
@@ -132,3 +143,31 @@ class Beams(object):
         if shape is None:
             shape = (self.shape[0]//8, self.shape[1]//8)
         return self.gauss_beam(b_maj, b_min, b_pa, shape=shape, point=point)
+    
+    def get_kernels(self, cluster_means: pd.DataFrame) -> list:
+        if self.kernels is not None:
+            return self.kernels
+        rows = cluster_means.shape[0]
+        alpha = 2 * np.sqrt(2 * np.log(2))
+        self.kernels = []
+        for row in range(rows):
+            datum = cluster_means.loc[row].to_list()[1:4]
+            sigma = datum[0] / alpha
+            kernel_size = (int(4 * sigma), int(4 * sigma))
+            k = self.kernel(*datum, shape=kernel_size)
+            self.kernels.append(k)
+        return self.kernels
+    
+    def draw_kernels(self, cluster_means: pd.DataFrame) -> None:
+        kernels = self.get_kernels(cluster_means)
+        for ind, kernel in enumerate(kernels):
+            self.draw_beam(kernel, f'kernel_{ind}')
+    
+    def conv_beams(self, cluster_means: pd.DataFrame, path: str) -> None:
+        kernels = self.get_kernels(cluster_means)
+        models = self.test_beams()
+        ind = 0
+        for model in models:
+            for kernel in kernels:
+                self.draw_beam(self.conv(model, kernel), str(ind), path=path)
+                ind += 1
