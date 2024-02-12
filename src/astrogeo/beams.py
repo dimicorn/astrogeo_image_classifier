@@ -1,9 +1,9 @@
 import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from scipy.signal import unit_impulse, convolve2d
-from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.image import imsave
+from scipy.signal import unit_impulse
+from astropy.convolution import convolve_fft
 from skimage.draw import line
 
 
@@ -11,7 +11,7 @@ def sqr(x: float) -> float: return x * x
 
 class Beams(object):
     rgb = 255
-    def __init__(self, shape: tuple = (128, 128)) -> None:
+    def __init__(self, shape: tuple = (512, 512)) -> None:
         self.shape = shape
         self.kernels = None
     
@@ -45,6 +45,9 @@ class Beams(object):
         e = np.exp(-(a * sqr(x-x0) + 2 * b * (x-x0) * (y-y0) + c * sqr(y-y0)))
         return e * self.rgb
     
+    def _point_beam(self, point: tuple = (0, 0)) -> np.array:
+        return self.gauss_beam(1, 1, 0, point=point)
+
     def two_gauss_beam(
             self, b_maj1: int, b_min1: int, b_pa1: float, 
             b_maj2: int, b_min2: int, b_pa2: float,
@@ -56,7 +59,12 @@ class Beams(object):
         gauss2 = self.gauss_beam(b_maj2, b_min2, b_pa2, point=point2)
         two_gauss = gauss1 + gauss2
         return two_gauss / np.max(two_gauss) * self.rgb
-        
+    
+    def _two_points_beam(
+            self, d: int, alpha: float, point: tuple = (0, 0)
+        ) -> np.array:
+        return self.two_gauss_beam(1, 1, 0, 1, 1, 0, d, alpha, point=point)
+    
     def gauss_w_jet_beam(
             self, b_maj: int, b_min: int, b_pa: float,
             d: int, alpha: float, point: tuple = (0, 0)
@@ -98,23 +106,25 @@ class Beams(object):
         if not os.path.exists(path):
             os.makedirs(path)
         
-        fig, ax = plt.subplots(figsize=(10, 8))
-        im = ax.imshow(beam, interpolation='none', origin='lower')
-        ax.set_xlabel('x [pixels]')
-        ax.set_ylabel('y [pixels]')
-        fig.colorbar(im)
-        fig.savefig(f'{path}/{filename}', dpi=500)
-        plt.close(fig)
+        imsave(f'{path}/{filename}.png', np.log10(beam + 1), origin='lower')
+        # fig, ax = plt.subplots(figsize=(10, 8))
+        # beam += 1
+        # im = ax.imshow(np.log10(beam), interpolation='none', origin='lower')
+        # ax.set_xlabel('x [pixels]')
+        # ax.set_ylabel('y [pixels]')
+        # fig.colorbar(im)
+        # fig.savefig(f'{path}/{filename}', dpi=500)
+        # plt.close(fig)
     
     def conv(self, model: np.array, kernel: np.array) -> np.array:
-        c = convolve2d(model, kernel, mode='same')
+        c = convolve_fft(model, kernel)
         return c / np.max(c) * self.rgb
     
     def test_beams(self) -> list:
         d, alpha = self.shape[0]//4, np.pi/4
         b_maj, b_min, b_pa = 15, 10, np.pi/4
         b_maj2, b_min2, b_pa2 = 8, 8, 0
-        v, c, w = 1.5, 0, 0.3
+        v, c, w = 1, 0, 0.05
         beams = [
             self.point_beam(), self.two_points_beam(d, alpha),
             self.gauss_beam(b_maj, b_min, b_pa),
@@ -148,12 +158,13 @@ class Beams(object):
         if self.kernels is not None:
             return self.kernels
         rows = cluster_means.shape[0]
-        alpha = 2 * np.sqrt(2 * np.log(2))
+        alpha, ratio = np.sqrt(np.log10(2)), 6 # wtf is this 
         self.kernels = []
         for row in range(rows):
             datum = cluster_means.loc[row].to_list()[1:4]
-            sigma = datum[0] / alpha
-            kernel_size = (int(4 * sigma), int(4 * sigma))
+            sigma = max(datum[0], datum[1]) / alpha
+            sh = np.ceil(ratio * sigma).astype(int)
+            kernel_size = (sh, sh)
             k = self.kernel(*datum, shape=kernel_size)
             self.kernels.append(k)
         return self.kernels
@@ -166,8 +177,8 @@ class Beams(object):
     def conv_beams(self, cluster_means: pd.DataFrame, path: str) -> None:
         kernels = self.get_kernels(cluster_means)
         models = self.test_beams()
-        ind = 0
-        for model in models:
-            for kernel in kernels:
-                self.draw_beam(self.conv(model, kernel), str(ind), path=path)
-                ind += 1
+        for m_i, model in enumerate(models):
+            if not os.path.exists(f'{path}/{m_i}'):
+                os.makedirs(f'{path}/{m_i}')
+            for k_i, kernel in enumerate(kernels):
+                self.draw_beam(self.conv(model, kernel), str(k_i), path=f'{path}/{m_i}')

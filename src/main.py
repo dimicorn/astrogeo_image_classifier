@@ -23,8 +23,10 @@ class Actions(object):
 	
 	def beam_clustering(self, maps: pd.DataFrame, ratio: int) -> pd.DataFrame:
 		b = BeamCluster(maps, ratio)
+		df = b.beam_cluster_means(ratio)
 		# b.draw_beam_clustering(ratio)
-		return b.beam_cluster_means(ratio)
+		df.to_csv('src/astrogeo/cluster_means.csv')
+		return df
 	
 	def draw_model_sources(self) -> None:
 		shape = (128, 128)
@@ -44,10 +46,6 @@ def main() -> int:
 	cnx.connect()
 	maps = pd.read_sql_table('maps', cnx)
 	uvs = pd.read_sql_table('catalogue', cnx)
-
-	# a = Actions()
-	# df = a.beam_clustering(maps, 10)
-	# df.to_csv('src/astrogeo/cluster_means.csv')
 
 	df = pd.read_csv('src/astrogeo/cluster_means.csv')
 	b = Beams()
