@@ -29,27 +29,26 @@ class Actions(object):
 		return df
 	
 	def draw_model_sources(self) -> None:
-		shape = (128, 128)
-		b = Beams(shape)
+		b = Beams()
 		b.test_beams()
 
 def main() -> int:
-	warnings.filterwarnings('ignore')
-	with open('config/config.yaml') as f:
-		config = sn(**yaml.load(f, Loader=yaml.FullLoader))
-	config_db, path = sn(**config.db), config.path
+	# warnings.filterwarnings('ignore')
+	# with open('config/config.yaml') as f:
+	# 	config = sn(**yaml.load(f, Loader=yaml.FullLoader))
+	# config_db, path = sn(**config.db), config.path
 
-	cnx = create_engine(
-		f'postgresql://{config_db.user}:'
-		f'{config_db.psswd}@{config_db.host}/{config_db.dbname}'
-	)
-	cnx.connect()
-	maps = pd.read_sql_table('maps', cnx)
-	uvs = pd.read_sql_table('catalogue', cnx)
+	# cnx = create_engine(
+	# 	f'postgresql://{config_db.user}:'
+	# 	f'{config_db.psswd}@{config_db.host}/{config_db.dbname}'
+	# )
+	# cnx.connect()
+	# maps = pd.read_sql_table('maps', cnx)
+	# uvs = pd.read_sql_table('catalogue', cnx)
 
 	df = pd.read_csv('src/astrogeo/cluster_means.csv')
 	b = Beams()
-	b.conv_beams(df, 'gen')
+	b.conv_beams(df, 'aug', aug=True, n=2000)
 	return 0
 
 if __name__ == '__main__':

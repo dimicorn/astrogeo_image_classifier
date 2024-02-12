@@ -12,3 +12,4 @@ legacy/*.png
 *.json
 *.csv
 gen/
+aug/

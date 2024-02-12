@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from numpy.random import randint, uniform
 import pandas as pd
 from matplotlib.image import imsave
 from scipy.signal import unit_impulse
@@ -15,24 +16,29 @@ class Beams(object):
         self.shape = shape
         self.kernels = None
     
-    def point_beam(self, point: tuple = (0, 0)) -> np.array:
+    def point_beam(self, point: tuple = (0, 0), max_int: int = None) -> np.array:
+        if max_int is None:
+            max_int = self.rgb
         coords = (point[0] + self.shape[0]//2, point[1] + self.shape[1]//2)
-        return unit_impulse(self.shape, coords) * self.rgb
+        return unit_impulse(self.shape, coords) * max_int
     
     def two_points_beam(
-            self, d: int, alpha: float, point: tuple = (0, 0)
+            self, d: int, alpha: float, point: tuple = (0, 0), max_int: int = None
         ) -> np.array:
         x0, y0 = point
         point2 = (int(x0 + d * np.sin(alpha)), int(y0 + d * np.cos(alpha)))
-        two_points = self.point_beam(point) + self.point_beam(point2)
+        two_points = self.point_beam(point) + self.point_beam(point2, max_int=max_int)
         return two_points / np.max(two_points) * self.rgb
     
     def gauss_beam(
             self, b_maj: int, b_min: int, b_pa: float, 
-            shape: tuple = None, point: tuple = (0, 0)
+            shape: tuple = None, point: tuple = (0, 0),
+            max_int: int = None, degrees: bool = False
         ) -> np.array:
-        if shape is None:
-            shape = self.shape
+        if shape is None: shape = self.shape
+        if max_int is None: max_int = self.rgb
+        if degrees: b_pa = np.deg2rad(b_pa)
+
         x0, y0 = point
         a = (sqr(np.cos(b_pa)) / (2 * sqr(b_maj)) + 
              sqr(np.sin(b_pa)) / (2 * sqr(b_min)))
@@ -43,7 +49,7 @@ class Beams(object):
         x, y = np.meshgrid(np.linspace(-shape[0]//2, shape[0]//2-1, shape[0]), 
                            np.linspace(-shape[1]//2, shape[1]//2-1, shape[1]))
         e = np.exp(-(a * sqr(x-x0) + 2 * b * (x-x0) * (y-y0) + c * sqr(y-y0)))
-        return e * self.rgb
+        return e * max_int
     
     def _point_beam(self, point: tuple = (0, 0)) -> np.array:
         return self.gauss_beam(1, 1, 0, point=point)
@@ -51,12 +57,13 @@ class Beams(object):
     def two_gauss_beam(
             self, b_maj1: int, b_min1: int, b_pa1: float, 
             b_maj2: int, b_min2: int, b_pa2: float,
-            d: int, alpha: float, point: tuple = (0, 0)
+            d: int, alpha: float, point: tuple = (0, 0), 
+            max_int: int = None
         ) -> np.array:
         x0, y0 = point
         point2 = (int(x0 + d * np.sin(alpha)), int(y0 + d * np.cos(alpha)))
         gauss1 = self.gauss_beam(b_maj1, b_min1, b_pa1, point=point)
-        gauss2 = self.gauss_beam(b_maj2, b_min2, b_pa2, point=point2)
+        gauss2 = self.gauss_beam(b_maj2, b_min2, b_pa2, point=point2, max_int=max_int)
         two_gauss = gauss1 + gauss2
         return two_gauss / np.max(two_gauss) * self.rgb
     
@@ -101,11 +108,8 @@ class Beams(object):
         return gauss
 
     def draw_beam(self, beam: np.array, filename: str, path: str = None) -> None:
-        if path is None:
-            path = 'src/astrogeo/test'
-        if not os.path.exists(path):
-            os.makedirs(path)
-        
+        if path is None: path = 'src/astrogeo/test'
+        if not os.path.exists(path): os.makedirs(path)
         imsave(f'{path}/{filename}.png', np.log10(beam + 1), origin='lower')
         # fig, ax = plt.subplots(figsize=(10, 8))
         # beam += 1
@@ -152,7 +156,10 @@ class Beams(object):
         ) -> np.array:
         if shape is None:
             shape = (self.shape[0]//8, self.shape[1]//8)
-        return self.gauss_beam(b_maj, b_min, b_pa, shape=shape, point=point)
+        return self.gauss_beam(
+            b_maj, b_min, b_pa,
+            shape=shape, point=point, degrees=True
+        )
     
     def get_kernels(self, cluster_means: pd.DataFrame) -> list:
         if self.kernels is not None:
@@ -174,11 +181,101 @@ class Beams(object):
         for ind, kernel in enumerate(kernels):
             self.draw_beam(kernel, f'kernel_{ind}')
     
-    def conv_beams(self, cluster_means: pd.DataFrame, path: str) -> None:
+    def conv_beams(
+            self, cluster_means: pd.DataFrame,
+            path: str, aug: bool = False,
+            n: int = 10
+        ) -> None:
+        models = self.augmentation(n) if aug else self.test_beams()
         kernels = self.get_kernels(cluster_means)
-        models = self.test_beams()
-        for m_i, model in enumerate(models):
-            if not os.path.exists(f'{path}/{m_i}'):
-                os.makedirs(f'{path}/{m_i}')
-            for k_i, kernel in enumerate(kernels):
-                self.draw_beam(self.conv(model, kernel), str(k_i), path=f'{path}/{m_i}')
+        kernel_num = len(kernels)
+        if aug:
+            k_i = 0
+            for ind, model in zip(range(kernel_num * n + 1), models):
+                m_i = ind if ind == 0 else (ind-1) // n + 1
+                if not os.path.exists(f'{path}/{m_i}'):
+                    os.makedirs(f'{path}/{m_i}')
+                for kernel in kernels:
+                    self.draw_beam(
+                        self.conv(model, kernel),
+                        str(k_i), path=f'{path}/{m_i}'
+                    )
+                    k_i += 1
+        else:
+            for m_i, model in enumerate(models):
+                if not os.path.exists(f'{path}/{m_i}'):
+                    os.makedirs(f'{path}/{m_i}')
+                for k_i, kernel in enumerate(kernels):
+                    self.draw_beam(
+                        self.conv(model, kernel),
+                        str(k_i), path=f'{path}/{m_i}'
+                    )
+    
+    def augmentation(self, n: int = 10) -> list:
+        Dist = (self.shape[0]//6, self.shape[0]//3)
+        Alpha = (-np.pi/2, np.pi/2)
+        Max_int = (20, self.rgb)
+        B_maj = (5, 30)
+        B_min = B_maj
+        B_pa = Alpha
+        V, C, W = (0.5, 2.5), (-1, 1), (0.06, 0.01)
+        beams = [self.point_beam()] # One point
+
+        # Two points
+        for _ in range(n):
+            d = randint(*Dist)
+            max_int = randint(*Max_int)
+            alpha = uniform(*Alpha)
+            beams.append(self.two_points_beam(d, alpha, max_int=max_int))
+        
+        # One gaussian
+        for _ in range(n):
+            b_maj, b_min = randint(*B_maj), randint(*B_min)
+            b_pa = uniform(*B_pa)
+            beams.append(self.gauss_beam(b_maj, b_min, b_pa))
+        
+        # Two gaussians
+        for _ in range(n):
+            b_maj, b_maj2 = randint(*B_maj), randint(*B_maj)
+            b_min, b_min2 = randint(*B_min), randint(*B_min)
+            b_pa, b_pa2 = uniform(*B_pa), uniform(*B_pa)
+            d, max_int = randint(*Dist), randint(*Max_int)
+            alpha = uniform(*Alpha)
+            beams.append(self.two_gauss_beam(
+                b_maj, b_min, b_pa,
+                b_maj2, b_min2, b_pa2,
+                d, alpha, max_int=max_int)
+            )
+        
+        # Gaussian with a jet
+        for _ in range(n):
+            b_maj, b_min = randint(*B_maj), randint(*B_min)
+            b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
+            d = randint(*Dist)
+            beams.append(self.gauss_w_jet_beam(
+                b_maj, b_min, b_pa, d, alpha)
+            )
+
+        # Gaussian with two jets
+        for _ in range(n):
+            b_maj, b_min = randint(*B_maj), randint(*B_min)
+            b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
+            d = randint(*Dist)
+            beams.append(self.gauss_w_two_jets_beam(
+                b_maj, b_min, b_pa, d, alpha)
+            )
+        
+        # Gaussian with a spiral
+        for _ in range(n):
+            b_maj, b_min = randint(*B_maj), randint(*B_min)
+            b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
+            v, c, w = uniform(*V), uniform(*C), uniform(*W)
+            beams.append(self.gauss_w_spiral_beam(
+                b_maj, b_min, b_pa, v, c, w, alpha)
+            )
+        return beams
+    
+    def draw_aug_beams(self, path: str) -> None:
+        beams, _ = self.augmentation()
+        for ind, beam in enumerate(beams):
+            self.draw_beam(beam, str(ind), path)
