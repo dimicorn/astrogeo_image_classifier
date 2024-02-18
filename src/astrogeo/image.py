@@ -1,6 +1,7 @@
 import os
 import matplotlib.pyplot as plt
 from matplotlib.legend_handler import HandlerPathCollection
+from matplotlib.image import imsave
 from sklearn.neighbors import LocalOutlierFactor as lof
 import numpy as np
 from astrogeo.consts import *
@@ -205,3 +206,8 @@ class Image(UVFits, MapFits):
         # {MAP_DIR}/{map_plot_name}
         fig.savefig(f'{MAP_DIR}/{map_plot_name}.png', dpi=500)
         plt.close(fig)
+    
+    def draw_map_raw(self, path: str) -> None:
+        if not os.path.exists(path): os.makedirs(path)
+        map = self.map_data().squeeze()
+        imsave(f'{path}/{self.file_name.split('.')[0]}.png', np.log10(map + 1), origin='lower')

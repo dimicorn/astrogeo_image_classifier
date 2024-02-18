@@ -10,7 +10,7 @@ from astrogeo.consts import CENTER, CMAP
 
 
 class Filter(object):
-	def __init__(self, df: pd.DataFrame, ratio: int) -> None:
+	def __init__(self, df: pd.DataFrame, ratio: int = 10) -> None:
 		self.maps = df
 		self.dirty_maps, self.weird_maps = None, None
 		self.filtered_maps = None
@@ -134,7 +134,7 @@ class Filter(object):
 
 class BeamCluster(Filter):
 	test_dir = 'src/astrogeo/test'
-	def __init__(self, df: pd.DataFrame, ratio: int) -> None:
+	def __init__(self, df: pd.DataFrame, ratio: int = 10) -> None:
 		Filter.__init__(self, df, ratio)
 		self.kmeans, self.X = None, None
 		self.b_maj, self.b_min = None, None

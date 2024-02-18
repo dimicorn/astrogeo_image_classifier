@@ -13,3 +13,5 @@ legacy/*.png
 *.csv
 gen/
 aug/
+data/
+*.zip
