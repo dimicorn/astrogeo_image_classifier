@@ -1,8 +1,9 @@
+import torch
 import torch.nn as nn
 
 
 class CNN(nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super(CNN, self).__init__()
         self.conv1 = nn.Conv2d(1, 16, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
@@ -16,7 +17,7 @@ class CNN(nn.Module):
         self.pool = nn.MaxPool2d(2, 2)
         self.dropout = nn.Dropout(p=0.2)
     
-    def forward(self, image):
+    def forward(self, image: torch.Tensor) -> torch.Tensor:
         image = self.pool(self.relu(self.conv1(image)))
         image = self.pool(self.relu(self.conv2(image)))
         image = self.pool(self.relu(self.conv3(image)))

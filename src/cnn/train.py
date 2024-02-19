@@ -2,59 +2,90 @@ import torch
 from torchvision import datasets, transforms
 import torch.nn as nn
 import torch.optim as optim
-from model import CNN
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import sklearn.metrics as metrics
 from tqdm import tqdm
+from model import CNN
 
 
-num_epochs = 11
-num_classes = 5
-batch_size = 64
-learning_rate = 0.002
+def train_model(
+        model_name: str, model_tensor_name: str, num_epochs: int = 11,
+        batch_size: int = 64, learning_rate: float = 0.002,
+        train_test_ratio: float = 0.8, data_path: str = 'aug'
+    ) -> None:
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# TODO: Add other transformations
-transform = transforms.Compose([transforms.Grayscale(), transforms.ToTensor()])
-data = datasets.ImageFolder('aug', transform=transform)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # TODO: Add other transformations
+    transform = transforms.Compose(
+        [transforms.Grayscale(), transforms.ToTensor()]
+    )
+    data = datasets.ImageFolder(data_path, transform=transform)
 
-train_size = int(0.8 * len(data))
-test_size = len(data) - train_size
-train, test = torch.utils.data.random_split(data, [train_size, test_size])
-trainloader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
-testloader = torch.utils.data.DataLoader(test, batch_size=batch_size, shuffle=True)
+    train_size = int(train_test_ratio * len(data))
+    test_size = len(data) - train_size
+    train, test = torch.utils.data.random_split(data, [train_size, test_size])
+    trainloader = torch.utils.data.DataLoader(
+        train, batch_size=batch_size, shuffle=True
+    )
+    testloader = torch.utils.data.DataLoader(
+        test, batch_size=batch_size, shuffle=True
+    )
 
-model = CNN()
-model.to(device)
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-criterion = nn.CrossEntropyLoss()
+    if model_name == 'cnn':
+        model = CNN()
+    model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    criterion = nn.CrossEntropyLoss()
 
-model.train()
-for epoch in range(num_epochs):
-    train_loss = 0.0
-    for data, target in tqdm(trainloader):
-        data = data.to(device)
-        target = target.to(device)
-        optimizer.zero_grad()
-        output = model(data)
-        loss = criterion(output, target)
-        loss.backward()
-        optimizer.step()
-        train_loss += loss.item() * data.size(0)
-    train_loss = train_loss/len(trainloader.dataset)
-    print(f'Epoch: {epoch+1} \tTraining Loss: {train_loss:.6f}')
+    model.train()
+    for epoch in range(num_epochs):
+        train_loss = 0.0
+        for data, target in tqdm(trainloader):
+            data = data.to(device)
+            target = target.to(device)
+            optimizer.zero_grad()
+            output = model(data)
+            loss = criterion(output, target)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item() * data.size(0)
+        train_loss = train_loss/len(trainloader.dataset)
+        print(f'Epoch: {epoch+1} \tTraining Loss: {train_loss:.6f}')
 
-y_test, predictions = [], []
-with torch.no_grad():
-    correct = 0
-    total = 0
-    for images, labels in tqdm(testloader):
-        images = images.to(device)
-        labels = labels.to(device)
-        outputs = model(images)
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
-        y_test.extend(labels.cpu().numpy())
-        predictions.extend(predicted.cpu().numpy())
-    print(f'Accuracy of the network on the {total} test images: {100 * correct / total:.3f} %')
+    y_test, predictions = [], []
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        for images, labels in tqdm(testloader):
+            images = images.to(device)
+            labels = labels.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+            y_test.extend(labels.cpu().numpy())
+            predictions.extend(predicted.cpu().numpy())
+        acc = 100 * correct / total
+        print(
+            f'Accuracy of the network on the {total} test images:'
+            f'{acc:.3f} %'
+        )
 
-torch.save(model.state_dict(), f'./models/test.pth')
+    torch.save(
+        model.state_dict(),
+        f'./models/{model_tensor_name}_{acc:.3f}.pth'
+    )
+
+    cm = confusion_matrix(y_test, predictions)
+    ConfusionMatrixDisplay(cm).plot()
+    precision = cm[0][0] / (cm[0][0] + cm[1][0])
+    recall = cm[0][0] / (cm[0][0] + cm[0][1])
+    
+    f1_score = 2 * precision * recall / (precision + recall)
+    f1_macro = metrics.f1_score(y_test, predictions, average='macro')
+    f1_weighted = metrics.f1_score(y_test, predictions, average='weighted')
+    print(f'Precision: {100 * precision:.3f} %')
+    print(f'Recall: {100 * recall:.3f} %')
+    print(f'F1 Score: {100 * f1_score:.3f} %')
+    print(f'F1 Macro Score: {100 * f1_macro:.3f} %')
+    print(f'F1 Weighted Score: {100 * f1_weighted:.3f} %')
