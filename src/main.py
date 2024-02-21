@@ -9,6 +9,8 @@ from astrogeo.db import FillTable
 from astrogeo.filter import Filter, BeamCluster
 from astrogeo.beams import Beams
 from astrogeo.image import Image
+from cnn.train import train_model
+from cnn.classify import classify
 
 
 class Actions(object):
@@ -60,6 +62,7 @@ def main() -> int:
 	maps = pd.read_sql_table('maps', cnx)
 	# uvs = pd.read_sql_table('catalogue', cnx)
 
+	train_model('cnn', 'test0')
 	return 0
 
 if __name__ == '__main__':

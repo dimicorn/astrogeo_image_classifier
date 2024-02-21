@@ -5,7 +5,7 @@ from torchvision import transforms
 from torchvision.io import read_image, ImageReadMode
 import json
 from tqdm import tqdm
-from model import CNN
+from cnn.model import CNN, CNNwBeam
 
 
 class AstrogeoDataset(Dataset):

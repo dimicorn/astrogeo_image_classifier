@@ -210,4 +210,5 @@ class Image(UVFits, MapFits):
     def draw_map_raw(self, path: str) -> None:
         if not os.path.exists(path): os.makedirs(path)
         map = self.map_data().squeeze()
-        imsave(f'{path}/{self.file_name.split('.')[0]}.png', np.log10(map + 1), origin='lower')
+        file_name = self.file_name.split('.')[0]
+        imsave(f'{path}/{file_name}.png', np.log10(map + 1), origin='lower')

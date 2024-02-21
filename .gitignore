@@ -11,7 +11,6 @@ data/
 
 legacy/*.png
 *.log
-*.txt
 *.json
 *.csv
 *.zip
@@ -19,3 +18,5 @@ legacy/*.png
 
 todo.md
 ps.sh
+master_maps.txt
+master_uvs.txt

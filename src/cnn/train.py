@@ -5,7 +5,8 @@ import torch.optim as optim
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import sklearn.metrics as metrics
 from tqdm import tqdm
-from model import CNN
+import matplotlib.pyplot as plt
+from cnn.model import CNN, CNNwBeam
 
 
 def train_model(
@@ -73,11 +74,12 @@ def train_model(
 
     torch.save(
         model.state_dict(),
-        f'./models/{model_tensor_name}_{acc:.3f}.pth'
+        f'src/cnn/models/{model_tensor_name}_{acc:.3f}.pth'
     )
 
     cm = confusion_matrix(y_test, predictions)
     ConfusionMatrixDisplay(cm).plot()
+    plt.savefig(f'./models/ConfMatrix_{model_tensor_name}_{acc:.3f}.png', dpi=500)
     precision = cm[0][0] / (cm[0][0] + cm[1][0])
     recall = cm[0][0] / (cm[0][0] + cm[0][1])
     
