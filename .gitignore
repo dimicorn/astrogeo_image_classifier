@@ -8,8 +8,11 @@ test/
 gen/
 aug/
 data/
+data_*
+new_aug*
+test_*
 
-legacy/*.png
+*.png
 *.log
 *.json
 *.csv

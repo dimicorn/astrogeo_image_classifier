@@ -184,9 +184,9 @@ class Beams(object):
     def conv_beams(
             self, cluster_means: pd.DataFrame,
             path: str, aug: bool = False,
-            n: int = 10
+            n: int = 10, spiral: bool = False
         ) -> None:
-        models = self.augmentation(n) if aug else self.test_beams()
+        models = self.augmentation(n, spiral=spiral) if aug else self.test_beams()
         kernels = self.get_kernels(cluster_means)
         kernel_num = len(kernels)
         if aug:
@@ -211,15 +211,17 @@ class Beams(object):
                         str(k_i), path=f'{path}/{m_i}'
                     )
     
-    def augmentation(self, n: int = 10) -> list:
-        Dist = (self.shape[0]//6, self.shape[0]//3)
-        Alpha = (-np.pi/2, np.pi/2)
-        Max_int = (20, self.rgb)
-        B_maj = (5, 30)
+    def augmentation(self, n: int = 10, spiral: bool = False) -> list:
+        Dist = (self.shape[0]//6, self.shape[0]//5)
+        Alpha = (0, 2 * np.pi)
+        Max_int = (60, self.rgb) # <--- change low bound
+        B_maj = (1, 5)
         B_min = B_maj
         B_pa = Alpha
+        # FIXME: pick better parameters below
         V, C, W = (0.5, 2.5), (-1, 1), (0.06, 0.01)
         beams = [self.point_beam()] # One point
+        # TODO: Add noise
 
         # Two points
         for _ in range(n):
@@ -266,16 +268,17 @@ class Beams(object):
             )
         
         # Gaussian with a spiral
-        for _ in range(n):
-            b_maj, b_min = randint(*B_maj), randint(*B_min)
-            b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
-            v, c, w = uniform(*V), uniform(*C), uniform(*W)
-            beams.append(self.gauss_w_spiral_beam(
-                b_maj, b_min, b_pa, v, c, w, alpha)
-            )
+        if spiral:
+            for _ in range(n):
+                b_maj, b_min = randint(*B_maj), randint(*B_min)
+                b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
+                v, c, w = uniform(*V), uniform(*C), uniform(*W)
+                beams.append(self.gauss_w_spiral_beam(
+                    b_maj, b_min, b_pa, v, c, w, alpha)
+                )
         return beams
     
     def draw_aug_beams(self, path: str) -> None:
-        beams, _ = self.augmentation()
+        beams = self.augmentation()
         for ind, beam in enumerate(beams):
             self.draw_beam(beam, str(ind), path)

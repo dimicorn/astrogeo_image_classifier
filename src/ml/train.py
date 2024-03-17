@@ -2,11 +2,10 @@ import torch
 from torchvision import datasets, transforms
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-import sklearn.metrics as metrics
+from sklearn.metrics import recall_score, precision_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from cnn.model import CNN, CNNwBeam
+from ml.model import CNN
 
 
 def train_model(
@@ -18,7 +17,9 @@ def train_model(
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # TODO: Add other transformations
     transform = transforms.Compose(
-        [transforms.Grayscale(), transforms.ToTensor()]
+        [transforms.Grayscale(),
+         transforms.RandomAffine(degrees=(0, 180), translate=(0.1, 0.3)), #
+         transforms.ToTensor()]
     )
     data = datasets.ImageFolder(data_path, transform=transform)
 
@@ -79,15 +80,16 @@ def train_model(
 
     cm = confusion_matrix(y_test, predictions)
     ConfusionMatrixDisplay(cm).plot()
-    plt.savefig(f'./models/ConfMatrix_{model_tensor_name}_{acc:.3f}.png', dpi=500)
-    precision = cm[0][0] / (cm[0][0] + cm[1][0])
-    recall = cm[0][0] / (cm[0][0] + cm[0][1])
+    plt.savefig(f'src/cnn/models/ConfMatrix_{model_tensor_name}_{acc:.3f}.png', dpi=500)
+
+    precision = precision_score(y_test, predictions, average='macro')
+    recall = recall_score(y_test, predictions, average='macro')
     
-    f1_score = 2 * precision * recall / (precision + recall)
-    f1_macro = metrics.f1_score(y_test, predictions, average='macro')
-    f1_weighted = metrics.f1_score(y_test, predictions, average='weighted')
+    f1 = 2 * precision * recall / (precision + recall)
+    f1_macro = f1_score(y_test, predictions, average='macro')
+    f1_weighted = f1_score(y_test, predictions, average='weighted')
     print(f'Precision: {100 * precision:.3f} %')
     print(f'Recall: {100 * recall:.3f} %')
-    print(f'F1 Score: {100 * f1_score:.3f} %')
+    print(f'F1 Score: {100 * f1:.3f} %')
     print(f'F1 Macro Score: {100 * f1_macro:.3f} %')
     print(f'F1 Weighted Score: {100 * f1_weighted:.3f} %')

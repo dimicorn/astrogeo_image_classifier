@@ -10,7 +10,7 @@ from bs4 import XMLParsedAsHTMLWarning
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 cadc = Cadc()
 coords = SkyCoord(10, 20, unit='deg')
-radius = 0.01*u.deg
+radius = 0.01 * u.deg
 readable_objs = cadc.get_images_async(coords, radius, collection='VLASS')
 
 for ind, obj in enumerate(readable_objs):
