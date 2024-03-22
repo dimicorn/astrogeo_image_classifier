@@ -209,6 +209,8 @@ class Image(UVFits, MapFits):
     
     def draw_map_raw(self, path: str) -> None:
         if not os.path.exists(path): os.makedirs(path)
-        map = self.map_data().squeeze()
+        map2d = self.map_data().squeeze()
+        # if map2d.shape[0] == 512 and map2d.shape[1] == 512:
         file_name = self.file_name.split('.')[0]
-        imsave(f'{path}/{file_name}.png', np.log10(map + 1), origin='lower')
+        map2d = np.abs(map2d)
+        imsave(f'{path}/{file_name}.png', np.log10(map2d + 1), origin='lower')

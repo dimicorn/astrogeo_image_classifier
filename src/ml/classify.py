@@ -5,7 +5,7 @@ from torchvision import transforms
 from torchvision.io import read_image, ImageReadMode
 import json
 from tqdm import tqdm
-from ml.model import CNN, CNNwBeam
+from ml.model import CNN
 
 
 class AstrogeoDataset(Dataset):
@@ -32,7 +32,7 @@ def classify(
         batch_size: int = 32, data_path: str = 'data'
     ) -> None:
     transform = transforms.Compose(
-        [transforms.ToPILImage(), transforms.Resize((512, 512)),
+        [transforms.ToPILImage(), # transforms.Resize((512, 512)),
          transforms.Grayscale(), transforms.ToTensor()]
     )
     val = AstrogeoDataset(data_path, transform=transform)

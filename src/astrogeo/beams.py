@@ -6,6 +6,7 @@ from matplotlib.image import imsave
 from scipy.signal import unit_impulse
 from astropy.convolution import convolve_fft
 from skimage.draw import line
+import cv2
 
 
 def sqr(x: float) -> float: return x * x
@@ -220,21 +221,22 @@ class Beams(object):
         B_pa = Alpha
         # FIXME: pick better parameters below
         V, C, W = (0.5, 2.5), (-1, 1), (0.06, 0.01)
-        beams = [self.point_beam()] # One point
-        # TODO: Add noise
-
+        beams = [] # [self.add_noise(self.point_beam())] # One point
+        '''
         # Two points
         for _ in range(n):
             d = randint(*Dist)
             max_int = randint(*Max_int)
             alpha = uniform(*Alpha)
-            beams.append(self.two_points_beam(d, alpha, max_int=max_int))
-        
+            model = self.two_points_beam(d, alpha, max_int=max_int)
+            beams.append(self.add_noise(model))
+        '''
         # One gaussian
         for _ in range(n):
             b_maj, b_min = randint(*B_maj), randint(*B_min)
             b_pa = uniform(*B_pa)
-            beams.append(self.gauss_beam(b_maj, b_min, b_pa))
+            model = self.gauss_beam(b_maj, b_min, b_pa)
+            beams.append(self.add_noise(model))
         
         # Two gaussians
         for _ in range(n):
@@ -243,29 +245,29 @@ class Beams(object):
             b_pa, b_pa2 = uniform(*B_pa), uniform(*B_pa)
             d, max_int = randint(*Dist), randint(*Max_int)
             alpha = uniform(*Alpha)
-            beams.append(self.two_gauss_beam(
+            model = self.two_gauss_beam(
                 b_maj, b_min, b_pa,
                 b_maj2, b_min2, b_pa2,
                 d, alpha, max_int=max_int)
-            )
+            beams.append(self.add_noise(model))
         
         # Gaussian with a jet
         for _ in range(n):
             b_maj, b_min = randint(*B_maj), randint(*B_min)
             b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
             d = randint(*Dist)
-            beams.append(self.gauss_w_jet_beam(
+            model = self.gauss_w_jet_beam(
                 b_maj, b_min, b_pa, d, alpha)
-            )
+            beams.append(self.add_noise(model))
 
         # Gaussian with two jets
         for _ in range(n):
             b_maj, b_min = randint(*B_maj), randint(*B_min)
             b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
             d = randint(*Dist)
-            beams.append(self.gauss_w_two_jets_beam(
+            model = self.gauss_w_two_jets_beam(
                 b_maj, b_min, b_pa, d, alpha)
-            )
+            beams.append(self.add_noise(model))
         
         # Gaussian with a spiral
         if spiral:
@@ -273,12 +275,18 @@ class Beams(object):
                 b_maj, b_min = randint(*B_maj), randint(*B_min)
                 b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
                 v, c, w = uniform(*V), uniform(*C), uniform(*W)
-                beams.append(self.gauss_w_spiral_beam(
+                model = self.gauss_w_spiral_beam(
                     b_maj, b_min, b_pa, v, c, w, alpha)
-                )
+                beams.append(self.add_noise(model))
         return beams
     
     def draw_aug_beams(self, path: str) -> None:
         beams = self.augmentation()
         for ind, beam in enumerate(beams):
             self.draw_beam(beam, str(ind), path)
+    
+    def add_noise(self, im: np.array) -> np.array:
+        noise = np.zeros(self.shape)
+        cv2.randn(noise, 0, 15)
+        un_img = cv2.add(im, noise)
+        return np.abs(un_img)
