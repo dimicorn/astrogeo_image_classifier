@@ -7,6 +7,7 @@ from scipy.signal import unit_impulse
 from astropy.convolution import convolve_fft
 from skimage.draw import line
 import cv2
+from tqdm import tqdm
 
 
 def sqr(x: float) -> float: return x * x
@@ -102,7 +103,7 @@ class Beams(object):
         ) -> np.array:
         x0, y0 = self.shape[0]//2 + point[0], self.shape[1]//2 + point[1]
         gauss = self.gauss_beam(b_maj, b_min, b_pa, point=point)
-        t = np.linspace(0, self.shape[0]//8-1, self.rgb)
+        t = np.linspace(0, self.shape[0]-1, self.rgb) # np.linspace(0, self.shape[0]//8-1, self.rgb)
         x = np.array((v * t + c) * np.cos(w * t + phi) + x0).astype(int)
         y = np.array((v * t + c) * np.sin(w * t + phi) + y0).astype(int)
         gauss[x, y] = self.rgb
@@ -123,6 +124,9 @@ class Beams(object):
     
     def conv(self, model: np.array, kernel: np.array) -> np.array:
         c = convolve_fft(model, kernel)
+        boundary = np.stack([model[0,:], model[-1,:], model[:,0], model[:,-1]])
+        fillvalue = boundary.mean()
+        c = convolve_fft(model, kernel, boundary='fill', fill_value=fillvalue)
         return c / np.max(c) * self.rgb
     
     def test_beams(self) -> list:
@@ -156,7 +160,7 @@ class Beams(object):
             shape: tuple = None, point: tuple = (0, 0)
         ) -> np.array:
         if shape is None:
-            shape = (self.shape[0]//8, self.shape[1]//8)
+            shape = self.shape # (self.shape[0]//8, self.shape[1]//8)
         return self.gauss_beam(
             b_maj, b_min, b_pa,
             shape=shape, point=point, degrees=True
@@ -192,31 +196,33 @@ class Beams(object):
         kernel_num = len(kernels)
         if aug:
             k_i = 0
-            for ind, model in zip(range(kernel_num * n + 1), models):
-                m_i = ind if ind == 0 else (ind-1) // n + 1
+            for m_i, model in enumerate(models):
+                k_i %= len(models)
                 if not os.path.exists(f'{path}/{m_i}'):
                     os.makedirs(f'{path}/{m_i}')
-                for kernel in kernels:
-                    self.draw_beam(
-                        self.conv(model, kernel),
-                        str(k_i), path=f'{path}/{m_i}'
-                    )
-                    k_i += 1
+                for beam in tqdm(model):
+                    for kernel in kernels:
+                        self.draw_beam(
+                            self.conv(beam, kernel),
+                            str(k_i), path=f'{path}/{m_i}'
+                        )
+                        k_i += 1
         else:
             for m_i, model in enumerate(models):
                 if not os.path.exists(f'{path}/{m_i}'):
                     os.makedirs(f'{path}/{m_i}')
-                for k_i, kernel in enumerate(kernels):
-                    self.draw_beam(
-                        self.conv(model, kernel),
-                        str(k_i), path=f'{path}/{m_i}'
-                    )
+                for beam in model:
+                    for k_i, kernel in enumerate(kernels):
+                        self.draw_beam(
+                            self.conv(beam, kernel),
+                            str(k_i), path=f'{path}/{m_i}'
+                        )
     
     def augmentation(self, n: int = 10, spiral: bool = False) -> list:
         Dist = (self.shape[0]//6, self.shape[0]//5)
         Alpha = (0, 2 * np.pi)
         Max_int = (60, self.rgb) # <--- change low bound
-        B_maj = (1, 5)
+        B_maj = (1, 3)
         B_min = B_maj
         B_pa = Alpha
         # FIXME: pick better parameters below
@@ -232,13 +238,16 @@ class Beams(object):
             beams.append(self.add_noise(model))
         '''
         # One gaussian
+        one_gauss = []
         for _ in range(n):
             b_maj, b_min = randint(*B_maj), randint(*B_min)
             b_pa = uniform(*B_pa)
             model = self.gauss_beam(b_maj, b_min, b_pa)
-            beams.append(self.add_noise(model))
-        
+            one_gauss.append(self.add_noise(model))
+        beams.append(one_gauss)
+
         # Two gaussians
+        two_gauss = []
         for _ in range(n):
             b_maj, b_maj2 = randint(*B_maj), randint(*B_maj)
             b_min, b_min2 = randint(*B_min), randint(*B_min)
@@ -249,27 +258,33 @@ class Beams(object):
                 b_maj, b_min, b_pa,
                 b_maj2, b_min2, b_pa2,
                 d, alpha, max_int=max_int)
-            beams.append(self.add_noise(model))
+            two_gauss.append(self.add_noise(model))
+        beams.append(two_gauss)
         
         # Gaussian with a jet
+        jet = []
         for _ in range(n):
             b_maj, b_min = randint(*B_maj), randint(*B_min)
             b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
             d = randint(*Dist)
             model = self.gauss_w_jet_beam(
                 b_maj, b_min, b_pa, d, alpha)
-            beams.append(self.add_noise(model))
+            jet.append(self.add_noise(model))
+        beams.append(jet)
 
         # Gaussian with two jets
+        two_jets = []
         for _ in range(n):
             b_maj, b_min = randint(*B_maj), randint(*B_min)
             b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
             d = randint(*Dist)
             model = self.gauss_w_two_jets_beam(
                 b_maj, b_min, b_pa, d, alpha)
-            beams.append(self.add_noise(model))
+            two_jets.append(self.add_noise(model))
+        beams.append(two_jets)
         
         # Gaussian with a spiral
+        '''
         if spiral:
             for _ in range(n):
                 b_maj, b_min = randint(*B_maj), randint(*B_min)
@@ -278,6 +293,7 @@ class Beams(object):
                 model = self.gauss_w_spiral_beam(
                     b_maj, b_min, b_pa, v, c, w, alpha)
                 beams.append(self.add_noise(model))
+        '''
         return beams
     
     def draw_aug_beams(self, path: str) -> None:
@@ -287,6 +303,6 @@ class Beams(object):
     
     def add_noise(self, im: np.array) -> np.array:
         noise = np.zeros(self.shape)
-        cv2.randn(noise, 0, 15)
+        cv2.randn(noise, 0, 5)
         un_img = cv2.add(im, noise)
         return np.abs(un_img)
