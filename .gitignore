@@ -1,16 +1,16 @@
 __pycache__/
+scripts/
 uv_plots/
+uv_files/
 maps/
 lof/
 config/
 models/
 test/
-gen/
-aug/
+difmap/
 data/
 data_*
-new_aug*
-test_*
+test*
 
 *.png
 *.log

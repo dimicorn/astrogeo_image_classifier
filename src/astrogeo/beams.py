@@ -26,7 +26,7 @@ class Beams(object):
     
     def two_points_beam(
             self, d: int, alpha: float, point: tuple = (0, 0), max_int: int = None
-        ) -> np.array:
+    ) -> np.array:
         x0, y0 = point
         point2 = (int(x0 + d * np.sin(alpha)), int(y0 + d * np.cos(alpha)))
         two_points = self.point_beam(point) + self.point_beam(point2, max_int=max_int)
@@ -36,7 +36,7 @@ class Beams(object):
             self, b_maj: int, b_min: int, b_pa: float, 
             shape: tuple = None, point: tuple = (0, 0),
             max_int: int = None, degrees: bool = False
-        ) -> np.array:
+    ) -> np.array:
         if shape is None: shape = self.shape
         if max_int is None: max_int = self.rgb
         if degrees: b_pa = np.deg2rad(b_pa)
@@ -61,7 +61,7 @@ class Beams(object):
             b_maj2: int, b_min2: int, b_pa2: float,
             d: int, alpha: float, point: tuple = (0, 0), 
             max_int: int = None
-        ) -> np.array:
+    ) -> np.array:
         x0, y0 = point
         point2 = (int(x0 + d * np.sin(alpha)), int(y0 + d * np.cos(alpha)))
         gauss1 = self.gauss_beam(b_maj1, b_min1, b_pa1, point=point)
@@ -71,13 +71,13 @@ class Beams(object):
     
     def _two_points_beam(
             self, d: int, alpha: float, point: tuple = (0, 0)
-        ) -> np.array:
+    ) -> np.array:
         return self.two_gauss_beam(1, 1, 0, 1, 1, 0, d, alpha, point=point)
     
     def gauss_w_jet_beam(
             self, b_maj: int, b_min: int, b_pa: float,
             d: int, alpha: float, point: tuple = (0, 0)
-        ) -> np.array:
+    ) -> np.array:
         x0, y0 = self.shape[0]//2 + point[0], self.shape[1]//2 + point[1]
         gauss_w_jet = self.gauss_beam(b_maj, b_min, b_pa, point=point)
         jet = (int(x0 + d * np.sin(alpha)), int(y0 + d * np.cos(alpha)))
@@ -88,7 +88,7 @@ class Beams(object):
     def gauss_w_two_jets_beam(
             self, b_maj: int, b_min: int, b_pa: float,
             d: int, alpha: float, point: tuple = (0, 0)
-        ) -> np.array:
+    ) -> np.array:
         x0, y0 = self.shape[0]//2 + point[0], self.shape[1]//2 + point[1]
         gauss_w_jets = self.gauss_beam(b_maj, b_min, b_pa, point=point)
         jet1 = (int(x0 - d * np.sin(alpha)), int(y0 - d * np.cos(alpha)))
@@ -100,7 +100,7 @@ class Beams(object):
     def gauss_w_spiral_beam(
             self, b_maj: int, b_min: int, b_pa: float,
             v: float, c: float, w: float, phi: float, point: tuple = (0, 0)
-        ) -> np.array:
+    ) -> np.array:
         x0, y0 = self.shape[0]//2 + point[0], self.shape[1]//2 + point[1]
         gauss = self.gauss_beam(b_maj, b_min, b_pa, point=point)
         t = np.linspace(0, self.shape[0]-1, self.rgb) # np.linspace(0, self.shape[0]//8-1, self.rgb)
@@ -158,7 +158,7 @@ class Beams(object):
     def kernel(
             self, b_maj: int, b_min: int, b_pa: float,
             shape: tuple = None, point: tuple = (0, 0)
-        ) -> np.array:
+    ) -> np.array:
         if shape is None:
             shape = self.shape # (self.shape[0]//8, self.shape[1]//8)
         return self.gauss_beam(

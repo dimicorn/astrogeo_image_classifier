@@ -4,8 +4,8 @@ from matplotlib.legend_handler import HandlerPathCollection
 from matplotlib.image import imsave
 from sklearn.neighbors import LocalOutlierFactor as lof
 import numpy as np
-from astrogeo.consts import *
-from astrogeo.fits import UVFits, MapFits, FitsError
+from src.astrogeo.consts import *
+from src.astrogeo.fits import UVFits, MapFits, FitsError
 
 
 class Image(UVFits, MapFits):
@@ -36,6 +36,24 @@ class Image(UVFits, MapFits):
         ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
         uv_plot_name = self.file_name[:-9]
         fig.savefig(f'{UV_DIR}/{uv_plot_name}.png', dpi=500)
+        plt.close(fig)
+    
+    def dirty_map(self) -> None:
+        X = self.uv_data()
+        max_u = round(max(X[0]) * 1e-6)
+        dirty_map = np.zeros((2*(max_u+1), 2*(max_u+1)))
+        for u, v, i in zip(X[0], X[1], X[2]):
+            dirty_map[round(v * 1e-6) + max_u][round(u * 1e-6) + max_u] = i
+        fig, ax = plt.subplots(figsize=(10, 8))
+        res = abs(np.fft.ifft2(dirty_map))
+        print(res[:5, :5])
+        ax.imshow(res)
+        ax.set_title(self.object, loc=CENTER)
+        ax.set_title(self.date, loc=LEFT)
+        ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
+
+        map_plot_name = self.file_name[:-9]
+        fig.savefig(f'{UV_DIR}/{map_plot_name}2.png', dpi=500)
         plt.close(fig)
     
     def _update_legend_marker_size(self, handle, orig) -> None:
@@ -197,7 +215,7 @@ class Image(UVFits, MapFits):
         # map2d = np.where(map2d > 5 * noise, map2d, 0)
         fig, ax = plt.subplots(figsize=(10, 8))
         # ax.imshow(np.log10(map2d), cmap=CMAP, origin='lower')
-        ax.imshow(map2d, cmap=CMAP, origin='lower')
+        ax.imshow(map2d, origin='lower')
         ax.set_title(self.object, loc=CENTER)
         ax.set_title(self.date, loc=LEFT)
         ax.set_title(f'{self.freq * 1e-9:.1f} GHz', loc=RIGHT)
