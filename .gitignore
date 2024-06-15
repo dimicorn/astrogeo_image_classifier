@@ -1,0 +1,13 @@
+.DS_Store
+data/
+test*
+pictures/
+json/
+
+*.zip
+*.yaml
+*.csv
+*.pdf
+*.txt
+*.json
+*.png
