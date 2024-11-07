@@ -1,11 +1,11 @@
 import os
 import matplotlib.pyplot as plt
 from matplotlib.legend_handler import HandlerPathCollection
-from matplotlib.image import imsave
 from sklearn.neighbors import LocalOutlierFactor as lof
 import numpy as np
-from src.astrogeo.consts import *
-from src.astrogeo.fits import UVFits, MapFits, FitsError
+from PIL.Image import fromarray, FLIP_TOP_BOTTOM
+from astrogeo.consts import *
+from astrogeo.fits import UVFits, MapFits, FitsError
 
 
 class Image(UVFits, MapFits):
@@ -225,10 +225,23 @@ class Image(UVFits, MapFits):
         fig.savefig(f'{MAP_DIR}/{map_plot_name}.png', dpi=500)
         plt.close(fig)
     
+    def rms(self, data, k=0.1) -> float:
+        b1, b2 = int(k * data.shape[0]), int(k * data.shape[1])
+        b3, b4 = int((1-k) * data.shape[0]), int((1-k) * data.shape[1])
+        
+        upper_left = np.mean(data[:b1, :b2].flatten() ** 2)
+        upper_right = np.mean(data[b3:, :b2].flatten() ** 2)
+        down_left = np.mean(data[:b1, b4:].flatten() ** 2)
+        down_right = np.mean(data[b3:, b4:].flatten() ** 2)
+        noise = np.mean([upper_left, upper_right, down_left, down_right])
+        return np.sqrt(noise)
+
     def draw_map_raw(self, path: str) -> None:
         if not os.path.exists(path): os.makedirs(path)
         map2d = self.map_data().squeeze()
-        # if map2d.shape[0] == 512 and map2d.shape[1] == 512:
         file_name = self.file_name.split('.')[0]
-        map2d = np.abs(map2d)
-        imsave(f'{path}/{file_name}.png', np.log10(map2d + 1), origin='lower')
+        map2d = np.log10(1 + map2d.clip(min=0))
+        map2d = (map2d / map2d.max() * 255).astype(np.uint8)
+        map2d = fromarray(map2d)
+        map2d = map2d.transpose(FLIP_TOP_BOTTOM)
+        map2d.save(f'{path}/{file_name}.png', 'PNG')

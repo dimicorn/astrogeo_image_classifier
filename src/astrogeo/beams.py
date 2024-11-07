@@ -2,11 +2,11 @@ import os
 import numpy as np
 from numpy.random import randint, uniform
 import pandas as pd
-from matplotlib.image import imsave
+from PIL.Image import fromarray, FLIP_TOP_BOTTOM
 from scipy.signal import unit_impulse
 from astropy.convolution import convolve_fft
 from skimage.draw import line
-import cv2
+from cv2 import randu, add
 from tqdm import tqdm
 
 
@@ -82,7 +82,8 @@ class Beams(object):
         gauss_w_jet = self.gauss_beam(b_maj, b_min, b_pa, point=point)
         jet = (int(x0 + d * np.sin(alpha)), int(y0 + d * np.cos(alpha)))
         rr, cc = line(x0, y0, jet[0], jet[1])
-        gauss_w_jet[rr, cc] = self.rgb
+        coefs = np.arange(1, len(gauss_w_jet[rr, cc])+1)
+        gauss_w_jet[rr, cc] = self.rgb // coefs
         return gauss_w_jet
     
     def gauss_w_two_jets_beam(
@@ -94,7 +95,9 @@ class Beams(object):
         jet1 = (int(x0 - d * np.sin(alpha)), int(y0 - d * np.cos(alpha)))
         jet2 = (int(x0 + d * np.sin(alpha)), int(y0 + d * np.cos(alpha)))
         rr, cc = line(jet1[0], jet1[1], jet2[0], jet2[1])
-        gauss_w_jets[rr, cc] = self.rgb
+        coefs = np.arange(-len(gauss_w_jets[rr, cc])//2, len(gauss_w_jets[rr, cc])//2)
+        coefs = np.abs(coefs) + 1
+        gauss_w_jets[rr, cc] = self.rgb // coefs
         return gauss_w_jets
     
     def gauss_w_spiral_beam(
@@ -112,15 +115,11 @@ class Beams(object):
     def draw_beam(self, beam: np.array, filename: str, path: str = None) -> None:
         if path is None: path = 'src/astrogeo/test'
         if not os.path.exists(path): os.makedirs(path)
-        imsave(f'{path}/{filename}.png', np.log10(beam + 1), origin='lower')
-        # fig, ax = plt.subplots(figsize=(10, 8))
-        # beam += 1
-        # im = ax.imshow(np.log10(beam), interpolation='none', origin='lower')
-        # ax.set_xlabel('x [pixels]')
-        # ax.set_ylabel('y [pixels]')
-        # fig.colorbar(im)
-        # fig.savefig(f'{path}/{filename}', dpi=500)
-        # plt.close(fig)
+        # beam = np.log10(1 + beam)
+        beam = (beam / beam.max() * 255).astype(np.uint8)
+        im = fromarray(beam)
+        im = im.transpose(FLIP_TOP_BOTTOM)
+        im.save(f'{path}/{filename}.png', 'PNG')
     
     def conv(self, model: np.array, kernel: np.array) -> np.array:
         c = convolve_fft(model, kernel)
@@ -219,69 +218,70 @@ class Beams(object):
                         )
     
     def augmentation(self, n: int = 10, spiral: bool = False) -> list:
-        Dist = (self.shape[0]//6, self.shape[0]//5)
+        Dist = (self.shape[0]//12, self.shape[0]//5)
         Alpha = (0, 2 * np.pi)
         Max_int = (60, self.rgb) # <--- change low bound
         B_maj = (1, 3)
         B_min = B_maj
         B_pa = Alpha
         # FIXME: pick better parameters below
-        V, C, W = (0.5, 2.5), (-1, 1), (0.06, 0.01)
-        beams = [] # [self.add_noise(self.point_beam())] # One point
-        '''
+        # V, C, W = (0.5, 2.5), (-1, 1), (0.06, 0.01)
+        beams = [[self.point_beam()]] # [self.add_noise(self.point_beam())] # One point
+
         # Two points
+        two_points = []
         for _ in range(n):
             d = randint(*Dist)
             max_int = randint(*Max_int)
             alpha = uniform(*Alpha)
             model = self.two_points_beam(d, alpha, max_int=max_int)
-            beams.append(self.add_noise(model))
-        '''
+            two_points.append(self.add_noise(model))
+        beams.append(two_points)
         # One gaussian
-        one_gauss = []
-        for _ in range(n):
-            b_maj, b_min = randint(*B_maj), randint(*B_min)
-            b_pa = uniform(*B_pa)
-            model = self.gauss_beam(b_maj, b_min, b_pa)
-            one_gauss.append(self.add_noise(model))
-        beams.append(one_gauss)
+        # one_gauss = []
+        # for _ in range(n):
+        #     b_maj, b_min = randint(*B_maj), randint(*B_min)
+        #     b_pa = uniform(*B_pa)
+        #     model = self.gauss_beam(b_maj, b_min, b_pa)
+        #     one_gauss.append(self.add_noise(model))
+        # beams.append(one_gauss)
 
         # Two gaussians
-        two_gauss = []
-        for _ in range(n):
-            b_maj, b_maj2 = randint(*B_maj), randint(*B_maj)
-            b_min, b_min2 = randint(*B_min), randint(*B_min)
-            b_pa, b_pa2 = uniform(*B_pa), uniform(*B_pa)
-            d, max_int = randint(*Dist), randint(*Max_int)
-            alpha = uniform(*Alpha)
-            model = self.two_gauss_beam(
-                b_maj, b_min, b_pa,
-                b_maj2, b_min2, b_pa2,
-                d, alpha, max_int=max_int)
-            two_gauss.append(self.add_noise(model))
-        beams.append(two_gauss)
+        # two_gauss = []
+        # for _ in range(n):
+        #     b_maj, b_maj2 = randint(*B_maj), randint(*B_maj)
+        #     b_min, b_min2 = randint(*B_min), randint(*B_min)
+        #     b_pa, b_pa2 = uniform(*B_pa), uniform(*B_pa)
+        #     d, max_int = randint(*Dist), randint(*Max_int)
+        #     alpha = uniform(*Alpha)
+        #     model = self.two_gauss_beam(
+        #         b_maj, b_min, b_pa,
+        #         b_maj2, b_min2, b_pa2,
+        #         d, alpha, max_int=max_int)
+        #     two_gauss.append(self.add_noise(model))
+        # beams.append(two_gauss)
         
         # Gaussian with a jet
-        jet = []
-        for _ in range(n):
-            b_maj, b_min = randint(*B_maj), randint(*B_min)
-            b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
-            d = randint(*Dist)
-            model = self.gauss_w_jet_beam(
-                b_maj, b_min, b_pa, d, alpha)
-            jet.append(self.add_noise(model))
-        beams.append(jet)
+        # jet = []
+        # for _ in range(n):
+        #     b_maj, b_min = randint(*B_maj), randint(*B_min)
+        #     b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
+        #     d = randint(*Dist)
+        #     model = self.gauss_w_jet_beam(
+        #         b_maj, b_min, b_pa, d, alpha)
+        #     jet.append(self.add_noise(model))
+        # beams.append(jet)
 
         # Gaussian with two jets
-        two_jets = []
-        for _ in range(n):
-            b_maj, b_min = randint(*B_maj), randint(*B_min)
-            b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
-            d = randint(*Dist)
-            model = self.gauss_w_two_jets_beam(
-                b_maj, b_min, b_pa, d, alpha)
-            two_jets.append(self.add_noise(model))
-        beams.append(two_jets)
+        # two_jets = []
+        # for _ in range(n):
+        #     b_maj, b_min = randint(*B_maj), randint(*B_min)
+        #     b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
+        #     d = randint(*Dist)
+        #     model = self.gauss_w_two_jets_beam(
+        #         b_maj, b_min, b_pa, d, alpha)
+        #     two_jets.append(self.add_noise(model))
+        # beams.append(two_jets)
         
         # Gaussian with a spiral
         '''
@@ -303,6 +303,6 @@ class Beams(object):
     
     def add_noise(self, im: np.array) -> np.array:
         noise = np.zeros(self.shape)
-        cv2.randn(noise, 0, 5)
-        un_img = cv2.add(im, noise)
+        randu(noise, 0, 0.05)
+        un_img = add(im, noise)
         return np.abs(un_img)

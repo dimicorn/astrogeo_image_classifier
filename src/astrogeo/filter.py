@@ -34,7 +34,7 @@ class Filter(object):
 		plt.savefig(f'{test_dir}/signal_noise_dist.png', dpi=500)
 		plt.close(fig)
 
-	def find_weird_maps(self) -> set:
+	def find_weird_maps(self) -> list:
 		# FIXME: change pixel difference
 		df = self.maps
 		weird_maps = [
@@ -43,7 +43,7 @@ class Filter(object):
 	   		df.map_max_y, df.obs_author, df.file_name)
 			if (abs(c_x - x) > 3 or abs(c_y - y) > 3) and a != 'Alan Marscher'
 		]
-		return set(weird_maps)
+		return weird_maps
 	
 	def uv_data_len(self) -> set:
 		...
@@ -58,7 +58,7 @@ class Filter(object):
 		return signal_noise
 	
 	def filter_df(self, ratio: int) -> None:
-		self.weird_maps = self.find_weird_maps()
+		self.weird_maps = set(self.find_weird_maps())
 		self.dirty_maps = self.maps_w_bad_signal_noise(ratio)
 		self.filtered_maps = self.weird_maps.union(self.dirty_maps)
 
@@ -70,6 +70,15 @@ class Filter(object):
 	   			file_name in self.filtered_maps or
 				b_maj * 3.6e6 / pixel_size > 60):
 				self.maps.drop(x, inplace=True)
+	
+	# def write_filtered_maps(self, ratio: int) -> None:
+	# 	self.weird_maps = self.find_weird_maps()
+	# 	self.dirty_maps = self.maps_w_bad_signal_noise(ratio)
+	# 	data = {
+	# 		'file_name': self.weird_maps + list(self.dirty_maps.keys())
+	# 	}
+	# 	df = pd.DataFrame(data)
+	# 	df.to_csv('list_filtered_maps.csv')
 	
 	def _draw_map(self, ax: np.array, path: str, file_name: str) -> Image:
 		dir = file_name.split('_')[0]

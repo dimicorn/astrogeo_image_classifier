@@ -1,4 +1,6 @@
 __pycache__/
+.ipynb_checkpoints/
+venv/
 scripts/
 uv_plots/
 uv_files/
@@ -8,7 +10,8 @@ config/
 models/
 test/
 difmap/
-data/
+ilya*/
+ehtplot/
 data_*
 test*
 

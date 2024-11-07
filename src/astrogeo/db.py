@@ -1,7 +1,7 @@
 import os
 import json
 import numpy as np
-import psycopg2
+from psycopg2 import connect
 from psycopg2.extensions import register_adapter, AsIs
 from types import SimpleNamespace as sn
 from astrogeo.fits import UVFits, MapFits
@@ -23,7 +23,7 @@ class Table(object):
         self.conn, self.cur = None, None
     
     def connect2table(self) -> None:
-        with psycopg2.connect(
+        with connect(
 			host=self.host, dbname=self.dbname,
 			user=self.user, password=self.psswd) as self.conn:
                self.cur = self.conn.cursor()
@@ -54,7 +54,7 @@ class Catalogue(Table):
         min_uv_radius float, max_uv_radius float,\
         visibilities int, max_amplitude float, min_amplitude float,\
         mean_amplitude float, median_amplitude float, freq_band float,\
-        antenna_tables int, uv_quality varchar(50), comment varchar(50));')
+        antenna_tables int, uv_quality varchar(100), comment varchar(100));')
         self.cur.execute(create_table_query)
         self.conn.commit()
 
@@ -82,7 +82,7 @@ class OurMaps(Table):
             noise_level float, map_size_x int, map_size_y int,\
             pixel_size_x float, pixel_size_y float, b_maj float,\
             b_min float, b_pa float, cc_tables int,\
-            map_quality varchar(50), comment varchar(50));'
+            map_quality int, comment varchar(100));'
         )
         self.cur.execute(create_table_query)
         self.conn.commit()
@@ -105,35 +105,35 @@ class FillTable(object):
 	master_uvs = 'src/astrogeo/master_uvs.txt'
 	
 	def __init__(self, config: sn) -> None:
-		self.data_path, self.config_db = config.path, config.db
+		self.data_path, self.config_db = config.path, sn(**config.db)
 		self.maps, self.uvs = self.get_all_files()
 	
 	def get_all_files(self) -> tuple:
 		objs = os.listdir(self.data_path)
 		map_files, uv_files = {}, {}
-		m = open(self.master_maps, 'w')
+		# m = open(self.master_maps, 'w')
 		uv = open(self.master_uvs, 'w')
 		for obj in objs:
 			map_files[obj], uv_files[obj] = [], []
 			for file in os.listdir(f'{self.data_path}/{obj}'):
-				if file[-8:] == MAP_FITS:
-					map_files[obj].append(file)
-					m.write(f'{obj}/{file}\n')
-				elif file[-8:] == VIS_FITS:
+				# if file[-8:] == MAP_FITS:
+				# 	map_files[obj].append(file)
+				# 	m.write(f'{obj}/{file}\n')
+				if file[-8:] == VIS_FITS:
 					uv_files[obj].append(file)
 					uv.write(f'{obj}/{file}\n')
-		m.close()
+		# m.close()
 		uv.close()
 	
-		with open('src/astrogeo/map_files.json', 'w') as f:
-			json.dump(map_files, f)
+		# with open('src/astrogeo/map_files.json', 'w') as f:
+		# 	json.dump(map_files, f)
 	
 		with open('src/astrogeo/uv_files.json', 'w') as f:
 			json.dump(uv_files, f)
 		return (map_files, uv_files)
 	
-	def fill_uv(self) -> None:
-		table = Catalogue(self.config_db, 'catalogue')
+	def fill_uv(self, name: str) -> None:
+		table = Catalogue(self.config_db, name)
 		table.connect2table()
 		table.create_table()
 		with open(self.master_uvs, 'r') as f:
@@ -145,8 +145,8 @@ class FillTable(object):
 			table.insert_value(uv.get_sql_params())
 			os.system(f"sed -i '1d' {self.master_uvs}")
 
-	def fill_maps(self) -> None:
-		table = OurMaps(self.config_db, 'maps')
+	def fill_maps(self, name: str) -> None:
+		table = OurMaps(self.config_db, name)
 		table.connect2table()
 		table.create_table()
 		with open(self.master_maps, 'r') as f:

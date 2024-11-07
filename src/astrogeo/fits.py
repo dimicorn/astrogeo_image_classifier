@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.io import fits
 import pandas as pd
-from src.astrogeo.consts import *
+from astrogeo.consts import *
 
 
 class FitsError(Exception):
@@ -321,10 +321,23 @@ class MapFits(Fits):
         map_params = (map_size_x, map_size_y, pixel_size_x, pixel_size_y, 
                       bmaj, bmin, bpa, cc_tables)
 
-        map_quality = 'n/a'
-        comment = map_quality
+        map_quality, comment = self.quality_comment(
+            mapc_x, mapc_y, map_max_x, map_max_y, header_data[3],
+            map_max, noise_level
+        )
         data = header_data + noise + map_params + (map_quality, comment)
         return data
+
+    def quality_comment(
+        self, c_x: float, c_y: float, x: float, y: float, a: str,
+        signal: float, noise: float, ratio: float = 10
+    ) -> str:
+        if (abs(c_x - x) > 3 or abs(c_y - y) > 3) and a != 'Alan Marscher':
+            dr = np.sqrt((c_x - x) * (c_x - x) + (c_y - y) * (c_y - y))
+            return (0, f'distance from map center to map max {dr} pixels')
+        elif signal / noise <= ratio:
+            return (0, f'snr = {signal / noise:.3f}')
+        return (1, '')
 
     def get_models(self) -> pd.DataFrame:
         models = pd.DataFrame()
