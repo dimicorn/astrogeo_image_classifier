@@ -1,11 +1,13 @@
 import os
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 from matplotlib.legend_handler import HandlerPathCollection
 from sklearn.neighbors import LocalOutlierFactor as lof
 import numpy as np
 from PIL.Image import fromarray, FLIP_TOP_BOTTOM
-from astrogeo.consts import *
-from astrogeo.fits import UVFits, MapFits, FitsError
+from utils.consts import *
+from utils.fits import UVFits, MapFits, FitsError
+# import ehtim
 
 
 class Image(UVFits, MapFits):
@@ -16,16 +18,16 @@ class Image(UVFits, MapFits):
             MapFits.__init__(self, file_name)
         else:
             raise FitsError('Wrong extension of file', self.file_name)
-        self.test_dir = 'src/astrogeo/test'
-        if not os.path.exists(self.test_dir):
-            os.makedirs(self.test_dir)
+        # self.test_dir = 'src/astrogeo/test'
+        # if not os.path.exists(self.test_dir):
+        #     os.makedirs(self.test_dir)
 
-    def draw_uv(self) -> None:
+    def drawUV(self) -> None:
         # checking if directory for UV plots exists, if not creates it
         if not os.path.exists(UV_DIR):
             os.makedirs(UV_DIR)
         
-        X = self.uv_data()
+        X = self.uvData()
         fig, ax = plt.subplots()
         ax.scatter(X[0] * 1e-6, X[1] * 1e-6, marker=DOT, color=COLOR)
         ax.set_xlabel(r'U Baseline projection (M$\lambda$)')
@@ -38,8 +40,8 @@ class Image(UVFits, MapFits):
         fig.savefig(f'{UV_DIR}/{uv_plot_name}.png', dpi=500)
         plt.close(fig)
     
-    def dirty_map(self) -> None:
-        X = self.uv_data()
+    def dirtyMap(self) -> None:
+        X = self.uvData()
         max_u = round(max(X[0]) * 1e-6)
         dirty_map = np.zeros((2*(max_u+1), 2*(max_u+1)))
         for u, v, i in zip(X[0], X[1], X[2]):
@@ -61,11 +63,11 @@ class Image(UVFits, MapFits):
         handle.update_from(orig)
         handle.set_sizes([20])
     
-    def draw_uv_lof(self) -> None:
+    def drawUVLof(self) -> None:
         if not os.path.exists(LOF_DIR):
             os.makedirs(LOF_DIR)
 
-        X = self.uv_data()[0:2]
+        X = self.uvData()[0:2]
         clf = lof(n_neighbors=75, contamination=0.01)
         y_pred = clf.fit_predict(X.T)
         X_scores = clf.negative_outlier_factor_
@@ -117,8 +119,8 @@ class Image(UVFits, MapFits):
         plt.savefig(f'{self.test_dir}/test_lof_2d.png', dpi=500)
         plt.close(fig)
     
-    def draw_uv_3d(self) -> None:
-        X = self.uv_data()[0:3]
+    def drawUV3d(self) -> None:
+        X = self.uvData()[0:3]
         clf = lof(n_neighbors=75, contamination=0.01)
         y_pred = clf.fit_predict(X.T)
         X_scores = clf.negative_outlier_factor_
@@ -174,8 +176,8 @@ class Image(UVFits, MapFits):
         plt.savefig(f'{self.test_dir}/test_lof_3d.png', dpi=500)
         plt.close(fig)
     
-    def draw_phase_radius(self) -> None:
-        X = self.uv_data()
+    def drawPhaseRadius(self) -> None:
+        X = self.uvData()
         fig = plt.figure()
         ax = fig.add_subplot()
         ax.scatter(
@@ -189,8 +191,8 @@ class Image(UVFits, MapFits):
         plt.savefig(f'{self.test_dir}/test_phase_radius.png', dpi=500)
         plt.close(fig)
     
-    def draw_ampl_radius(self) -> None:
-        X = self.uv_data()
+    def drawAmplRadius(self) -> None:
+        X = self.uvData()
         fig = plt.figure()
         ax = fig.add_subplot()
         ax.scatter(
@@ -204,12 +206,12 @@ class Image(UVFits, MapFits):
         plt.savefig(f'{self.test_dir}/test_ampl_radius.png', dpi=500)
         plt.close(fig)
 
-    def draw_map(self) -> None:
+    def drawMap(self) -> None:
         # checking if directory for maps exists, if not creates it
         if not os.path.exists(MAP_DIR):
             os.makedirs(MAP_DIR)
 
-        data = self.map_data()
+        data = self.mapData()
         map2d = data.squeeze()
         # noise = self.map_noise(map2d)
         # map2d = np.where(map2d > 5 * noise, map2d, 0)
@@ -236,12 +238,26 @@ class Image(UVFits, MapFits):
         noise = np.mean([upper_left, upper_right, down_left, down_right])
         return np.sqrt(noise)
 
-    def draw_map_raw(self, path: str) -> None:
-        if not os.path.exists(path): os.makedirs(path)
-        map2d = self.map_data().squeeze()
+    def drawMapRaw(self, path: str) -> None:
+        if not os.path.exists(path):
+            os.makedirs(path)
+        map2d = self.mapData().squeeze()
         file_name = self.file_name.split('.')[0]
-        map2d = np.log10(1 + map2d.clip(min=0))
+        map2d = np.log10(1 + map2d.clip(min=0, max=255))
         map2d = (map2d / map2d.max() * 255).astype(np.uint8)
         map2d = fromarray(map2d)
         map2d = map2d.transpose(FLIP_TOP_BOTTOM)
         map2d.save(f'{path}/{file_name}.png', 'PNG')
+    
+    def drawMapLogNorm(self, path: str) -> None:
+        if not os.path.exists(path):
+            os.makedirs(path)
+        map2d = self.mapData().squeeze()
+        file_name = self.file_name.split('.')[0]
+        noise = self.rms(map2d)
+        print(noise)
+        vmin = 2 * noise
+        map2d = np.clip(map2d, vmin, np.inf)
+        fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+        ax.imshow(map2d, cmap='afmhot_u', norm=LogNorm(vmin=vmin, vmax=np.max(map2d)))
+        plt.savefig(f'{path}/{file_name}.png')

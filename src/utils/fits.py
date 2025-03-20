@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.io import fits
 import pandas as pd
-from astrogeo.consts import *
+from utils.consts import *
 
 
 class FitsError(Exception):
@@ -18,7 +18,7 @@ class Fits(object):
     hdulist = None
     file_name = None
 
-    def sanity_check(self, f):
+    def sanityCheck(self, f):
         if not f[PRIMARY].header[SIMPLE]:
             # raise FitsError(...)
             print(f'Non standard Fits file {self.file_name}')
@@ -46,19 +46,19 @@ class Fits(object):
         
         freq_band = file_name.split('_')[1]
         freq_lower, freq_upper = freq_bands[freq_band][0], freq_bands[freq_band][1]
-        freq = self.get_freq() * 1e-9
+        freq = self.getFreq() * 1e-9
         if not (freq_lower <= freq and freq <= freq_upper):
             # raise FitsError(...)
             print(f'Wrong FREQ band ({freq_band}) in file name, '
                   f'frequency value {freq} GHz, {self.file_name}')
 
-    def header_data(self) -> tuple:
+    def headerData(self) -> tuple:
         '''Reading PRIMARY table header'''
         header = self.hdulist[PRIMARY].header
-        return (header[OBJECT], header[DATE_OBS], self.get_freq(), 
+        return (header[OBJECT], header[DATE_OBS], self.getFreq(), 
                 header[AUTHOR], self.file_name.split('/')[-1])
 
-    def get_freq(self) -> float:
+    def getFreq(self) -> float:
         # FIXME: Refactor this plz
         header = self.hdulist[PRIMARY].header
         for i in range(1, header[NAXIS] + 1):
@@ -69,7 +69,7 @@ class Fits(object):
                 ...
         raise FitsError('No CTYPE_i == FREQ was found', self.file_name)
     
-    def header_key_check(self, key):
+    def headerKeyCheck(self, key):
         header = self._map_header
         try:
             return header[key]
@@ -77,7 +77,7 @@ class Fits(object):
             print(f'Caution: {self.file_name} has no {key} key')
             return -1
     
-    def uv_data_key_check(self, key):
+    def uvDataKeyCheck(self, key):
         data = self._freq_data
         try:
             return data[key]
@@ -85,7 +85,7 @@ class Fits(object):
             print(f'Caution: {self.file_name} has no {key} key')
             return -1
 
-    def print_header(self) -> None:
+    def printHeader(self) -> None:
         '''Printing header of the PRIMARY table'''
         header = self.hdulist[PRIMARY].header
         for key in header.keys():
@@ -112,7 +112,7 @@ class UVFits(Fits):
             self._uv_header = f[PRIMARY].header
             self._uv_data = f[PRIMARY].data
             
-            self.sanity_check(f)
+            self.sanityCheck(f)
             
             if len(f) < 3:
                 raise FitsError(
@@ -138,12 +138,12 @@ class UVFits(Fits):
                 self._an_tables = len(f) - 2
                 print(f'Caution: {self.file_name} has multiple AN tables')
         
-        self.freq = self.get_freq()
+        self.freq = self.getFreq()
         self.date = self._uv_header[DATE_OBS]
         self.object = self._uv_header[OBJECT]
-        self.uv_data()
+        self.uvData()
 
-    def uv_data(self) -> np.array:
+    def uvData(self) -> np.ndarray:
         '''Reading UV data'''
         if self._X is None:
             data = self._uv_data
@@ -197,18 +197,18 @@ class UVFits(Fits):
 
         return self._X
 
-    def get_sql_params(self) -> tuple:
+    def getSQLParams(self) -> tuple:
         '''object_name, obs_date, freq,
         obs_author, file_name, min_uv_radius, max_uv_radius,
         visibilities, max_amplitude, min_amplitude, mean_amplitude,
         median_amplitude, freq_band, antenna_tables, uv_quality, comment'''
-        header_data = self.header_data()
+        header_data = self.headerData()
         radius = np.sqrt(self._X[0] * self._X[0] + self._X[1] * self._X[1])
         min_radius, max_radius = np.min(radius), np.max(radius)
         ampl = self._X[2]
         ampl_data = (np.min(ampl), np.max(ampl), 
                      np.mean(ampl), np.median(ampl))
-        freq_ch_sum = np.sum(self.uv_data_key_check(CH_WIDTH)) # freq band
+        freq_ch_sum = np.sum(self.uvDataKeyCheck(CH_WIDTH)) # freq band
         uv_quality = 'n/a'
         comment = uv_quality
 
@@ -232,7 +232,7 @@ class MapFits(Fits):
             self._map_header = f[PRIMARY].header
             self._map_data = f[PRIMARY].data
 
-            self.sanity_check(f)
+            self.sanityCheck(f)
 
             if len(f) == 1:
                 print(f'Caution: {self.file_name} has no CC tables')
@@ -253,12 +253,12 @@ class MapFits(Fits):
         self.date = self._map_header[DATE_OBS]
         self.object = self._map_header[OBJECT]
         self.author = self._map_header[AUTHOR]
-        self.freq = self.get_freq()
+        self.freq = self.getFreq()
 
-    def map_data(self):
+    def mapData(self):
         return self._map_data
 
-    def get_parameters(self) -> pd.DataFrame:
+    def getParameters(self) -> pd.DataFrame:
         ''' get some parameters from a header: 
         CRVAL, CRPIX, FREQ, SOURCE, DATE-OBS '''
         header = self._map_header
@@ -270,7 +270,7 @@ class MapFits(Fits):
         params[CDELT2] *= 3.6e6
         return pd.DataFrame(params)
     
-    def map_noise(self, data, k=0.1) -> float:
+    def mapNoise(self, data, k=0.1) -> float:
         # TODO: check indexes
         # borders
         b1, b2 = int(k * data.shape[0]), int(k * data.shape[1])
@@ -282,7 +282,7 @@ class MapFits(Fits):
         noise = np.median([upper_left, upper_right, down_left, down_right])
         return noise
     
-    def get_sql_params(self) -> tuple:
+    def getSQLParams(self) -> tuple:
         '''
         object_name, obs_date, freq, obs_author, file_name, 
         map_max, mapc_x, mapc_y, map_max_x, map_max_y, 
@@ -291,44 +291,44 @@ class MapFits(Fits):
         b_maj, b_min, b_pa, cc_tables, 
         map_quality, comment
         '''
-        header_data = self.header_data()
+        header_data = self.headerData()
         header, cc_tables = self._map_header, self._cc_tables
         
-        map_data = self.map_data().squeeze()
-        map_max = self.header_key_check('DATAMAX')
+        map_data = self.mapData().squeeze()
+        map_max = self.headerKeyCheck('DATAMAX')
         # map_max = np.max(map_data)
-        mapc_x = self.header_key_check(CRPIX1)
-        mapc_y = self.header_key_check(CRPIX2)
-        pixel_size_x = self.header_key_check(CDELT1) * 3.6e6
-        pixel_size_y = self.header_key_check(CDELT2) * 3.6e6
+        mapc_x = self.headerKeyCheck(CRPIX1)
+        mapc_y = self.headerKeyCheck(CRPIX2)
+        pixel_size_x = self.headerKeyCheck(CDELT1) * 3.6e6
+        pixel_size_y = self.headerKeyCheck(CDELT2) * 3.6e6
         ind = np.argmax(map_data)
 
         # строчки и столбцы
         map_max_y, map_max_x = np.unravel_index(ind, map_data.shape) 
-        noise_level = self.map_noise(map_data)
+        noise_level = self.mapNoise(map_data)
         map_max_x_mas = map_max_x * pixel_size_x
         map_max_y_mas = map_max_y * pixel_size_y
         noise = (map_max, mapc_x, mapc_y,
                  map_max_x, map_max_y, map_max_x_mas, map_max_y_mas,
                  noise_level)
 
-        map_size_x = self.header_key_check(NAXIS1)
-        map_size_y = self.header_key_check(NAXIS2)
-        bmaj = self.header_key_check(BMAJ)
-        bmin = self.header_key_check(BMIN)
-        bpa = self.header_key_check(BPA)
+        map_size_x = self.headerKeyCheck(NAXIS1)
+        map_size_y = self.headerKeyCheck(NAXIS2)
+        bmaj = self.headerKeyCheck(BMAJ)
+        bmin = self.headerKeyCheck(BMIN)
+        bpa = self.headerKeyCheck(BPA)
         
         map_params = (map_size_x, map_size_y, pixel_size_x, pixel_size_y, 
                       bmaj, bmin, bpa, cc_tables)
 
-        map_quality, comment = self.quality_comment(
+        map_quality, comment = self.qualityComment(
             mapc_x, mapc_y, map_max_x, map_max_y, header_data[3],
             map_max, noise_level
         )
         data = header_data + noise + map_params + (map_quality, comment)
         return data
 
-    def quality_comment(
+    def qualityComment(
         self, c_x: float, c_y: float, x: float, y: float, a: str,
         signal: float, noise: float, ratio: float = 10
     ) -> str:
@@ -339,7 +339,7 @@ class MapFits(Fits):
             return (0, f'snr = {signal / noise:.3f}')
         return (1, '')
 
-    def get_models(self) -> pd.DataFrame:
+    def getModels(self) -> pd.DataFrame:
         models = pd.DataFrame()
         keys = [FLUX, DELTAX, DELTAY, MAJOR_AX, MINOR_AX, POSANGLE, TYPE_OBJ]
         new_keys = [FLUX, DELTAX, DELTAY, 

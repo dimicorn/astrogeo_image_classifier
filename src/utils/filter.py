@@ -5,8 +5,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from sklearn.cluster import KMeans
-from astrogeo.image import Image
-from astrogeo.consts import CENTER, CMAP
+from utils.image import Image
+from utils.consts import CENTER, CMAP
 
 
 class Filter(object):

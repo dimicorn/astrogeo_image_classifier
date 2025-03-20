@@ -226,62 +226,62 @@ class Beams(object):
         B_pa = Alpha
         # FIXME: pick better parameters below
         # V, C, W = (0.5, 2.5), (-1, 1), (0.06, 0.01)
-        beams = [[self.point_beam()]] # [self.add_noise(self.point_beam())] # One point
+        beams = [] # [[self.point_beam()]] # [self.add_noise(self.point_beam())] # One point
 
         # Two points
-        two_points = []
-        for _ in range(n):
-            d = randint(*Dist)
-            max_int = randint(*Max_int)
-            alpha = uniform(*Alpha)
-            model = self.two_points_beam(d, alpha, max_int=max_int)
-            two_points.append(self.add_noise(model))
-        beams.append(two_points)
-        # One gaussian
-        # one_gauss = []
+        # two_points = []
         # for _ in range(n):
-        #     b_maj, b_min = randint(*B_maj), randint(*B_min)
-        #     b_pa = uniform(*B_pa)
-        #     model = self.gauss_beam(b_maj, b_min, b_pa)
-        #     one_gauss.append(self.add_noise(model))
-        # beams.append(one_gauss)
+        #     d = randint(*Dist)
+        #     max_int = randint(*Max_int)
+        #     alpha = uniform(*Alpha)
+        #     model = self.two_points_beam(d, alpha, max_int=max_int)
+        #     two_points.append(self.add_noise(model))
+        # beams.append(two_points)
+        # One gaussian
+        one_gauss = []
+        for _ in range(n):
+            b_maj, b_min = randint(*B_maj), randint(*B_min)
+            b_pa = uniform(*B_pa)
+            model = self.gauss_beam(b_maj, b_min, b_pa)
+            one_gauss.append(self.add_noise(model))
+        beams.append(one_gauss)
 
         # Two gaussians
-        # two_gauss = []
-        # for _ in range(n):
-        #     b_maj, b_maj2 = randint(*B_maj), randint(*B_maj)
-        #     b_min, b_min2 = randint(*B_min), randint(*B_min)
-        #     b_pa, b_pa2 = uniform(*B_pa), uniform(*B_pa)
-        #     d, max_int = randint(*Dist), randint(*Max_int)
-        #     alpha = uniform(*Alpha)
-        #     model = self.two_gauss_beam(
-        #         b_maj, b_min, b_pa,
-        #         b_maj2, b_min2, b_pa2,
-        #         d, alpha, max_int=max_int)
-        #     two_gauss.append(self.add_noise(model))
-        # beams.append(two_gauss)
+        two_gauss = []
+        for _ in range(n):
+            b_maj, b_maj2 = randint(*B_maj), randint(*B_maj)
+            b_min, b_min2 = randint(*B_min), randint(*B_min)
+            b_pa, b_pa2 = uniform(*B_pa), uniform(*B_pa)
+            d, max_int = randint(*Dist), randint(*Max_int)
+            alpha = uniform(*Alpha)
+            model = self.two_gauss_beam(
+                b_maj, b_min, b_pa,
+                b_maj2, b_min2, b_pa2,
+                d, alpha, max_int=max_int)
+            two_gauss.append(self.add_noise(model))
+        beams.append(two_gauss)
         
         # Gaussian with a jet
-        # jet = []
-        # for _ in range(n):
-        #     b_maj, b_min = randint(*B_maj), randint(*B_min)
-        #     b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
-        #     d = randint(*Dist)
-        #     model = self.gauss_w_jet_beam(
-        #         b_maj, b_min, b_pa, d, alpha)
-        #     jet.append(self.add_noise(model))
-        # beams.append(jet)
+        jet = []
+        for _ in range(n):
+            b_maj, b_min = randint(*B_maj), randint(*B_min)
+            b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
+            d = randint(*Dist)
+            model = self.gauss_w_jet_beam(
+                b_maj, b_min, b_pa, d, alpha)
+            jet.append(self.add_noise(model))
+        beams.append(jet)
 
         # Gaussian with two jets
-        # two_jets = []
-        # for _ in range(n):
-        #     b_maj, b_min = randint(*B_maj), randint(*B_min)
-        #     b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
-        #     d = randint(*Dist)
-        #     model = self.gauss_w_two_jets_beam(
-        #         b_maj, b_min, b_pa, d, alpha)
-        #     two_jets.append(self.add_noise(model))
-        # beams.append(two_jets)
+        two_jets = []
+        for _ in range(n):
+            b_maj, b_min = randint(*B_maj), randint(*B_min)
+            b_pa, alpha = uniform(*B_pa), uniform(*Alpha)
+            d = randint(*Dist)
+            model = self.gauss_w_two_jets_beam(
+                b_maj, b_min, b_pa, d, alpha)
+            two_jets.append(self.add_noise(model))
+        beams.append(two_jets)
         
         # Gaussian with a spiral
         '''
@@ -303,6 +303,6 @@ class Beams(object):
     
     def add_noise(self, im: np.array) -> np.array:
         noise = np.zeros(self.shape)
-        randu(noise, 0, 0.05)
+        randu(noise, -25, 0)
         un_img = add(im, noise)
-        return np.abs(un_img)
+        return un_img.clip(min=0)
