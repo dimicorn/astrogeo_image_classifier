@@ -3,10 +3,10 @@ from yaml import load, FullLoader
 import sys
 import pandas as pd
 from types import SimpleNamespace as sn
-from astrogeo.db import FillTable
-from astrogeo.filter import Filter, BeamCluster
-from astrogeo.beams import Beams
-from astrogeo.image import Image
+from utils.db import Table, FillTable
+from utils.filter import Filter, BeamCluster
+from utils.beams import Beams
+from utils.image import Image
 from psycopg2 import connect
 
 
@@ -38,7 +38,7 @@ class Actions(object):
 		# 	clusters1 = pd.read_csv('src/astrogeo/cluster_means.csv')
 		b = Beams()
 		# b.conv_beams(clusters2, 'noise_96k', aug=True, n=3000)
-		b.conv_beams(clusters2, 'synt_one_channel_test', aug=True, n=1)
+		b.conv_beams(clusters2, 'synt_one_channel_noise', aug=True, n=1000)
 	
 	def draw_astrogeo(self, maps: pd.DataFrame, path: str) -> None:
 		# f = Filter(maps)
@@ -58,10 +58,12 @@ def main() -> int:
 		host=config_db.host, dbname=config_db.dbname,
 		user=config_db.user, password=config_db.psswd
 	)
-	maps = pd.read_sql('select * from maps24;', con=cnx)
+	val = pd.read_sql('select * from classes_t;', con=cnx)
+	# for file_name, source_class in zip(val.file_name, val.source_class):
+		
 	# uvs = pd.read_sql_table('catalogue24', cnx)
 
-	a = Actions()
+	# a = Actions()
 	# a.draw_astrogeo(maps, path)
 	# a.draw_augmented_sources()
 	return 0

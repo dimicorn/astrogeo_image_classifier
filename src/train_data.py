@@ -6,15 +6,17 @@ from yaml import load, FullLoader
 from psycopg2 import connect
 from utils.beams import Beams
 from utils.filter import BeamCluster
+from utils.preprocess import preprocess
 
 
 def drawSyntheticData(maps: pd.DataFrame, class_num: int, train_path: str = 'synt_data') -> None:
     bc = BeamCluster(maps)
-    clusters = bc.beam_cluster_means(10)
+    clusters = bc.beamClusterMeans(10)
     print('Finished clustering')
     print(clusters)
     b = Beams()
-    b.conv_beams(clusters, train_path, aug=True, n=class_num)
+    beams = b.convBeams(clusters, train_path, aug=True, n=class_num)
+    print(beams.shape)
 
 def main():
     if len(argv) in [1, 2]:

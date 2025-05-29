@@ -14,9 +14,9 @@ class Filter(object):
 		self.maps = df
 		self.dirty_maps, self.weird_maps = None, None
 		self.filtered_maps = None
-		self.filter_df(ratio)
+		self.filterDf(ratio)
 	
-	def draw_sn_dist(self) -> None:
+	def drawSnDist(self) -> None:
 		test_dir = 'src/astrogeo/test'
 		if not os.path.exists(test_dir):
 			os.makedirs(test_dir)
@@ -34,7 +34,7 @@ class Filter(object):
 		plt.savefig(f'{test_dir}/signal_noise_dist.png', dpi=500)
 		plt.close(fig)
 
-	def find_weird_maps(self) -> list:
+	def findWeirdMaps(self) -> list:
 		# FIXME: change pixel difference
 		df = self.maps
 		weird_maps = [
@@ -48,7 +48,7 @@ class Filter(object):
 	def uv_data_len(self) -> set:
 		...
 	
-	def maps_w_bad_signal_noise(self, ratio: int) -> dict:
+	def mapsWBadSignalNoise(self, ratio: int) -> dict:
 		df = self.maps
 		signal_noise = {
 			file: sig / nl for file, sig, nl in 
@@ -57,9 +57,9 @@ class Filter(object):
 		}
 		return signal_noise
 	
-	def filter_df(self, ratio: int) -> None:
-		self.weird_maps = set(self.find_weird_maps())
-		self.dirty_maps = self.maps_w_bad_signal_noise(ratio)
+	def filterDf(self, ratio: int) -> None:
+		self.weird_maps = set(self.findWeirdMaps())
+		self.dirty_maps = self.mapsWBadSignalNoise(ratio)
 		self.filtered_maps = self.weird_maps.union(self.dirty_maps)
 
 		for x in self.maps.index:
@@ -80,15 +80,15 @@ class Filter(object):
 	# 	df = pd.DataFrame(data)
 	# 	df.to_csv('list_filtered_maps.csv')
 	
-	def _draw_map(self, ax: np.array, path: str, file_name: str) -> Image:
+	def _drawMap(self, ax: np.array, path: str, file_name: str) -> Image:
 		dir = file_name.split('_')[0]
 		im = Image(f'{path}/{dir}/{file_name}')
-		data = im.map_data().squeeze()
+		data = im.mapData().squeeze()
 		ax.imshow(data, cmap=CMAP, origin='lower')
 		ax.set_title(im.object, loc=CENTER)
 		return im
 	
-	def draw_dirty_maps(self, path: str, file_name: str) -> None:
+	def drawDirtyMaps(self, path: str, file_name: str) -> None:
 		step = 4
 		n = len(self.dirty_maps.keys())
 		left = n % step
@@ -111,10 +111,10 @@ class Filter(object):
 				pdf.savefig()
 				plt.close(fig)
 	
-	def _draw_map_w_author(
-			self, ax: np.array, path: str, file_name: str
+	def _drawMapWAuthor(
+			self, ax: np.ndarray, path: str, file_name: str
 		) -> None:
-		im = self._draw_map(ax, path, file_name)
+		im = self._drawMap(ax, path, file_name)
 		ax.set_title(f'{im.object}_{im.author}', loc=CENTER)
 	
 	def draw_filtered_maps(self, path: str, file_name: str) -> None:
@@ -126,17 +126,17 @@ class Filter(object):
 		with PdfPages(f'{file_name}.pdf') as pdf:
 			for i in range(0, n-step, step):
 				fig, axes = plt.subplots(2, 2)
-				self._draw_map_w_author(axes[0][0], path, files[i])
-				self._draw_map_w_author(axes[0][1], path, files[i+1])
-				self._draw_map_w_author(axes[1][0], path, files[i+2])
-				self._draw_map_w_author(axes[1][1], path, files[i+3])
+				self._drawMapWAuthor(axes[0][0], path, files[i])
+				self._drawMapWAuthor(axes[0][1], path, files[i+1])
+				self._drawMapWAuthor(axes[1][0], path, files[i+2])
+				self._drawMapWAuthor(axes[1][1], path, files[i+3])
 				fig.tight_layout()
 				pdf.savefig()
 				plt.close(fig)
 			
 			for i in range(left, 0, -1):
 				fig, ax = plt.subplots(1)
-				self._draw_map_w_author(ax, path, files[-i])
+				self._drawMapWAuthor(ax, path, files[-i])
 				fig.tight_layout()
 				pdf.savefig()
 				plt.close(fig)
@@ -150,7 +150,7 @@ class BeamCluster(Filter):
 		if not os.path.exists(self.test_dir):
 			os.makedirs(self.test_dir)
 	
-	def _preprocess(self) -> np.array:
+	def _preprocess(self) -> np.ndarray:
 		pixel_size = self.maps['pixel_size_y'].to_numpy().T
 		self.b_maj = self.maps['b_maj'].to_numpy().T * 3.6e6 / pixel_size
 		self.b_min = self.maps['b_min'].to_numpy().T * 3.6e6 / pixel_size
@@ -158,16 +158,16 @@ class BeamCluster(Filter):
 
 		return np.stack([self.b_maj, self.b_min, self.b_pa])
 	
-	def _beam_clustering(self, clusters: int) -> None:
+	def _beamClustering(self, clusters: int) -> None:
 		X = self._preprocess()
 		kms = KMeans(n_clusters=clusters, random_state=0, n_init='auto')
 		self.kmeans = kms.fit(X.T)
 		labels = np.array([self.kmeans.labels_])
 		self.X = np.concatenate((X.T, labels.T), axis=1)
 
-	def beam_cluster_means(self, clusters: int) -> pd.DataFrame:
+	def beamClusterMeans(self, clusters: int) -> pd.DataFrame:
 		if self.X is None:
-			self._beam_clustering(clusters)
+			self._beamClustering(clusters)
 		
 		data = self.X
 		means = {}
@@ -199,9 +199,9 @@ class BeamCluster(Filter):
 		df = df.astype(float)
 		return df.sort_index()
 		
-	def draw_beam_clustering(self, clusters: int) -> None:
+	def drawBeamClustering(self, clusters: int) -> None:
 		if self.kmeans is None or self.X is None:
-			self._beam_clustering(clusters)
+			self._beamClustering(clusters)
 		X = self.X
 		test_dir = self.test_dir
 		
@@ -238,7 +238,7 @@ class BeamCluster(Filter):
 		plt.savefig(f'{test_dir}/beam_pa_min.png', dpi=500)
 		plt.close(fig)
 	
-	def draw_b_min_dist(self) -> None:
+	def drawBminDist(self) -> None:
 		if self.b_min is None:
 			self._preprocess()
 		X = self.b_min
@@ -252,7 +252,7 @@ class BeamCluster(Filter):
 		plt.savefig(f'{self.test_dir}/beam_min_dist.png', dpi=500)
 		plt.close(fig)
 	
-	def draw_b_maj_dist(self) -> None:
+	def drawBmajDist(self) -> None:
 		if self.b_maj is None:
 			self._preprocess()
 		X = self.b_maj
@@ -266,7 +266,7 @@ class BeamCluster(Filter):
 		plt.savefig(f'{self.test_dir}/beam_maj_dist.png', dpi=500)
 		plt.close(fig)
 	
-	def draw_b_pa_dist(self) -> None:
+	def drawBpaDist(self) -> None:
 		X = self.b_pa
 		fig = plt.figure(figsize=(10, 8))
 		ax = fig.add_subplot(1, 1, 1)
