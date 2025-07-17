@@ -1,0 +1,7 @@
+venv
+__pycache__
+*_old
+*.yaml
+master_*
+*.json
+*.sh
