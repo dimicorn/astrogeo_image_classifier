@@ -1,5 +1,6 @@
 from warnings import filterwarnings
 import argparse
+import sys
 from yaml import safe_load
 from munch import munchify
 from utils.fill_table import FillTable
@@ -13,6 +14,9 @@ def main() -> None:
         type=str,
         help="SQL table which will be created and filled",
     )
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit()
     args = parser.parse_args()
     filterwarnings("ignore")
 

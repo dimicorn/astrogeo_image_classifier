@@ -3,7 +3,19 @@ from astropy.io import fits
 import numpy as np
 from psycopg2 import connect
 from utils.fits import Fits
-from utils.consts import *
+from utils.consts import (
+    PRIMARY,
+    AIPS_FQ,
+    AIPS_AN,
+    DATE_OBS,
+    OBJECT,
+    GCOUNT,
+    NO_IF,
+    UU,
+    VV,
+    IF_FREQ,
+    CH_WIDTH,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -31,9 +43,6 @@ class UVFits(Fits):
 
             if len(f) < 3:
                 logger.error(f"Missing FQ or AN table in UV file: {self.file_name}")
-                # raise FitsError(
-                #     'Missing FQ or AN table in UV file',
-                #     self.file_name)
             elif len(f) == 3:
                 self._freq_header = f[AIPS_FQ].header
                 self._freq_data = f[AIPS_FQ].data
@@ -53,7 +62,6 @@ class UVFits(Fits):
                 self._antenna_data = f[AIPS_AN].data
                 self._an_tables = len(f) - 2
                 logger.warning(f"{self.file_name} has multiple AN tables")
-                # print(f'Caution: {self.file_name} has multiple AN tables')
 
         self.antennas = len(fits.getdata(file_name, extname=AIPS_AN))  # from Ilya
         self.freq = self.getFreq()
@@ -83,8 +91,6 @@ class UVFits(Fits):
                         uu_key, vv_key = "UU---SIN", "VV---SIN"
                     except KeyError:
                         logger.warning(f"{self.file_name}: has weird UU and VV keys")
-                        # print(f'Caution: {self.file_name}'
-                        #                    'has weird UU and VV keys')
 
             if if_nums == 1:
                 for ind in range(gcount):

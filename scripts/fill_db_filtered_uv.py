@@ -1,5 +1,6 @@
 from warnings import filterwarnings
 import argparse
+import sys
 from yaml import safe_load
 from munch import munchify
 from utils.fill_table import FillTable
@@ -16,6 +17,9 @@ def main() -> None:
         type=str,
         help="Existing SQL table which will be used for UV data quality",
     )
+    if len(sys.argv) < 3:
+        parser.print_help()
+        sys.exit()
     args = parser.parse_args()
     filterwarnings("ignore")
 

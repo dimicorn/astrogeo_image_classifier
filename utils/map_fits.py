@@ -1,11 +1,37 @@
+import logging
 from astropy.io import fits
 import pandas as pd
 import numpy as np
-from utils.fits import FitsError, Fits
-from utils.consts import *
+from utils.fits import Fits
+from utils.consts import (
+    PRIMARY,
+    AIPS_CC,
+    DATE_OBS,
+    OBJECT,
+    AUTHOR,
+    CRPIX1,
+    CRPIX2,
+    CDELT1,
+    CDELT2,
+    NAXIS1,
+    NAXIS2,
+    BMAJ,
+    BMIN,
+    BPA,
+    CRVAL3,
+    FLUX,
+    DELTAX,
+    DELTAY,
+    MAJOR_AX,
+    MINOR_AX,
+    POSANGLE,
+    TYPE_OBJ,
+    TFIELDS,
+)
+
+logger = logging.Logger(__name__)
 
 
-# TODO: Add logging as in uv_fits
 class MapFits(Fits):
     def __init__(self, file_name) -> None:
         self.file_name_w_path = file_name
@@ -23,7 +49,7 @@ class MapFits(Fits):
             self.sanityCheck(f)
 
             if len(f) == 1:
-                print(f"Caution: {self.file_name} has no CC tables")
+                logger.warning(f"{self.file_name} has no CC tables")
             elif len(f) == 2:
                 self._cc_header = f[AIPS_CC].header
                 self._cc_data = f[AIPS_CC].data
@@ -36,7 +62,7 @@ class MapFits(Fits):
                 for i in range(self._cc_tables):
                     self._cc_header.append(f[i].header)
                     self._cc_data.append(f[i].data)
-                print(f"Caution: {self.file_name} has multiple CC tables")
+                logger.warning(f"{self.file_name} has multiple CC tables")
 
         self.date = self._map_header[DATE_OBS]
         self.object = self._map_header[OBJECT]
@@ -170,5 +196,5 @@ class MapFits(Fits):
             models[new_key] = self._cc_data[key].tolist()
 
         if not (field_num == 7 or field_num == 3):
-            raise FitsError("Wrong number of columns in CC table", self.file_name)
+            logger.error("Wrong number of columns in CC table", self.file_name)
         return models

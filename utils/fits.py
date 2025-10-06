@@ -1,42 +1,30 @@
-from utils.consts import *
+import logging
+from utils.consts import PRIMARY, SIMPLE, OBJECT, DATE_OBS, AUTHOR, NAXIS, FREQ
 
 
-# Remove below if unused, use default logger
-class FitsError(Exception):
-    """Base class for exceptions in this module."""
-
-    def __init__(self, message: str, file_name: str) -> None:
-        self.file_name = file_name
-        self.message = message
-
-    def __str__(self) -> str:
-        return f"{self.message}: {self.file_name}"
+logger = logging.Logger(__name__)
 
 
-# TODO: Add logging as in uv_fits
 class Fits(object):
     hdulist = None
     file_name = None
 
     def sanityCheck(self, f) -> None:
         if not f[PRIMARY].header[SIMPLE]:
-            # raise FitsError(...)
-            print(f"Non standard Fits file {self.file_name}")
+            logger.error(f"Non standard Fits file {self.file_name}")
 
         header = f[PRIMARY].header
         obj_name_1 = header[OBJECT]
         file_name = self.file_name
         obj_name_2 = file_name.split("_")[0]
         if obj_name_1 != obj_name_2:
-            # raise FitsError(...)
-            print(
+            logger.error(
                 f"Object name does not correspond to one in file name {self.file_name}"
             )
 
         folder_name = self.file_name_w_path.split("/")[-2]
         if obj_name_1 != folder_name:
-            # raise FitsError(...)
-            print(
+            logger.error(
                 f"Object {obj_name_1} in the {folder_name}/ directory {self.file_name}"
             )
 
@@ -56,8 +44,7 @@ class Fits(object):
         freq_lower, freq_upper = freq_bands[freq_band][0], freq_bands[freq_band][1]
         freq = self.getFreq() * 1e-9
         if not (freq_lower <= freq and freq <= freq_upper):
-            # raise FitsError(...)
-            print(
+            logger.error(
                 f"Wrong FREQ band ({freq_band}) in file name, "
                 f"frequency value {freq} GHz, {self.file_name}"
             )
@@ -82,14 +69,14 @@ class Fits(object):
                     return header[f"CRVAL{i}"]
             except KeyError:
                 ...
-        raise FitsError("No CTYPE_i == FREQ was found", self.file_name)
+        raise logger.error("No CTYPE_i == FREQ was found", self.file_name)
 
     def headerKeyCheck(self, key) -> float:
         header = self._map_header
         try:
             return header[key]
         except KeyError:
-            print(f"Caution: {self.file_name} has no {key} key")
+            logger.warning(f"{self.file_name} has no {key} key")
             return -1
 
     def uvDataKeyCheck(self, key) -> float:
@@ -97,14 +84,14 @@ class Fits(object):
         try:
             return data[key]
         except KeyError:
-            print(f"Caution: {self.file_name} has no {key} key")
+            logger.warning(f"{self.file_name} has no {key} key")
             return -1
 
     def printHeader(self) -> None:
         """Printing header of the PRIMARY table"""
         header = self.hdulist[PRIMARY].header
         for key in header.keys():
-            print(f"{key}\t{header[key]}")
+            logger.info(f"{key}\t{header[key]}")
 
     def info(self) -> None:
         self.hdulist.info()
