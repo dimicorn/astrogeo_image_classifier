@@ -1,7 +1,6 @@
 import logging
 from astropy.io import fits
 import numpy as np
-from psycopg2 import connect
 from utils.fits import Fits
 from utils.consts import (
     PRIMARY,
@@ -119,7 +118,7 @@ class UVFits(Fits):
 
         return self._X
 
-    def getSQLParams(self, map_table_name: str, config) -> tuple:
+    def getSQLParams(self) -> tuple:
         """object_name, obs_date, freq,
         obs_author, file_name, min_uv_radius, max_uv_radius,
         visibilities, max_amplitude, min_amplitude, mean_amplitude,
@@ -135,30 +134,12 @@ class UVFits(Fits):
             float(np.median(ampl)),
         )
         freq_ch_sum = float(np.sum(self.uvDataKeyCheck(CH_WIDTH)))  # freq band
-        uv_quality, comment = self.qualityComment(map_table_name, config)
 
         data = header_data + (min_radius, max_radius, self._X.shape[1]) + ampl_data
-        data += (freq_ch_sum, self.antennas, self._an_tables, uv_quality, comment)
+        data += (freq_ch_sum, self.antennas, self._an_tables)
         return data
 
-    def qualityComment(
-        self, map_table_name: str, cfg, min_antennas: int = 8, min_vis: int = 1000
-    ) -> tuple[str, str]:
-        with connect(
-            host=cfg.host, dbname=cfg.dbname, user=cfg.user, password=cfg.psswd
-        ) as conn:
-            cur = conn.cursor()
-        map_file = self.file_name.replace("vis", "map")
-        select_map = (
-            f"select map_quality from {map_table_name} where file_name = '{map_file}';"
-        )
-        cur.execute(select_map)
-        map_quality = cur.fetchall()[0][0]
-        if map_quality == 0:
-            return (0, f"{map_file} is a bad map")
-        elif self._X.shape[1] < min_vis:
-            return (0, f"only {self._X.shape[1]} visibilities")
-        elif self.antennas < min_antennas:
-            return (0, f"only {self.antennas} antennas")
-        else:
-            return (1, "")
+    def getQualityParams(self) -> tuple[int]:
+        visibilities = self._X.shape[1]
+        antennas = self.antennas
+        return visibilities, antennas

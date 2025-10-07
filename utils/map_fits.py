@@ -113,24 +113,18 @@ class MapFits(Fits):
         map_max, mapc_x, mapc_y, map_max_x, map_max_y,
         map_max_x_mas, map_max_y_mas, noise_level,
         map_size_x, map_size_y, pixel_size_x, pixel_size_y,
-        b_maj, b_min, b_pa, cc_tables,
-        map_quality, comment
+        b_maj, b_min, b_pa, cc_tables
         """
-        header_data = self.headerData()
-        header, cc_tables = self._map_header, self._cc_tables
+        cc_tables = self._cc_tables
 
-        map_data = self.mapData().squeeze()
-        map_max = self.headerKeyCheck("DATAMAX")
-        # map_max = np.max(map_data)
-        mapc_x = self.headerKeyCheck(CRPIX1)
-        mapc_y = self.headerKeyCheck(CRPIX2)
         pixel_size_x = self.headerKeyCheck(CDELT1) * 3.6e6
         pixel_size_y = self.headerKeyCheck(CDELT2) * 3.6e6
-        ind = np.argmax(map_data)
+
+        mapc_x, mapc_y, map_max_x, map_max_y, _, map_max, noise_level = (
+            self.getQualityParams()
+        )
 
         # строчки и столбцы
-        map_max_y, map_max_x = np.unravel_index(ind, map_data.shape)
-        noise_level = self.mapNoise(map_data)
         map_max_x_mas = map_max_x * pixel_size_x
         map_max_y_mas = map_max_y * pixel_size_y
         noise = (
@@ -161,29 +155,29 @@ class MapFits(Fits):
             cc_tables,
         )
 
-        map_quality, comment = self.qualityComment(
-            mapc_x, mapc_y, map_max_x, map_max_y, header_data[3], map_max, noise_level
-        )
-        data = header_data + noise + map_params + (map_quality, comment)
+        data = self.headerData() + noise + map_params
         return data
 
-    def qualityComment(
-        self,
-        c_x: float,
-        c_y: float,
-        x: float,
-        y: float,
-        a: str,
-        signal: float,
-        noise: float,
-        ratio: float = 10,
-    ) -> tuple[str, str]:
-        if (abs(c_x - x) > 3 or abs(c_y - y) > 3) and a != "Alan Marscher":
-            dr = np.sqrt((c_x - x) * (c_x - x) + (c_y - y) * (c_y - y))
-            return (0, f"distance from map center to map max {dr} pixels")
-        elif signal / noise <= ratio:
-            return (0, f"snr = {signal / noise:.3f}")
-        return (1, "")
+    def getQualityParams(self) -> tuple[float]:
+        mapc_x = self.headerKeyCheck(CRPIX1)
+        mapc_y = self.headerKeyCheck(CRPIX2)
+        map_data = self.mapData().squeeze()
+        index = np.argmax(map_data)
+        map_max_y, map_max_x = np.unravel_index(index, map_data.shape)
+        header_data = self.headerData()
+        author = header_data[3]
+        map_max = self.headerKeyCheck("DATAMAX")
+        # map_max = np.max(map_data)
+        noise_level = self.mapNoise(map_data)
+        return (
+            mapc_x,
+            mapc_y,
+            map_max_x,
+            map_max_y,
+            author,
+            map_max,
+            noise_level,
+        )
 
     def getModels(self) -> pd.DataFrame:
         models = pd.DataFrame()

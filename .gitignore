@@ -1,10 +1,12 @@
 .venv
 .vscode
 .ruff_cache
+.pytest_cache
 __pycache__
 *_old
 *.yaml
 master_*
 *.json
 *.sh
+*.log
 TODO
