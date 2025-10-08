@@ -1,0 +1,25 @@
+version: "3"
+
+# TODO: add more commands!!!
+
+tasks:
+  install:
+    desc: Use uv if available, otherwise pip
+    cmds:
+      - |
+        if command -v uv >/dev/null 2>&1; then
+          echo "Using uv..."
+          uv venv .venv
+          . .venv/bin/activate
+          uv sync --frozen
+        else
+          echo "Using pip..."
+          python3 -m venv .venv
+          . .venv/bin/activate
+          pip install -r requirements.txt
+        fi
+  test:
+    desc: Run tests
+    cmds:
+      - pytest -v
+  

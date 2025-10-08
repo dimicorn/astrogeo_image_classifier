@@ -4,7 +4,7 @@
 .pytest_cache
 __pycache__
 *_old
-*.yaml
+config.yaml
 master_*
 *.json
 *.sh
