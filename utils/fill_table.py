@@ -17,9 +17,10 @@ def uv2map(file_name: str) -> str:
 class FillTables(object):
     fill_table = "fill_table.log"
 
-    def __init__(self, config: Munch) -> None:
+    def __init__(self, config: Munch, retry: bool = False) -> None:
         self.data_path, self.config_db = config.fits_path, config.db
-        self._getAllFiles()
+        if not retry:
+            self._getAllFiles()
 
     def _getAllFiles(self) -> tuple[dict[str : list[str]], dict[str : list[str]]]:
         objs = os.listdir(self.data_path)
@@ -63,8 +64,10 @@ class FillTables(object):
                     uv_file, map_file = stream.read().rstrip().split("\n")
                 uv = UVFits(f"{self.data_path}/{uv_file}")
                 map_ = MapFits(f"{self.data_path}/{map_file}")
-                quality = qualityComment(*uv.getQualityParams(), *map_.getQualityParams())
+                quality = qualityComment(
+                    *uv.getQualityParams(), *map_.getQualityParams()
+                )
                 vis_table.insert_value(uv.getSQLParams() + quality)
                 map_table.insert_value(map_.getSQLParams() + quality)
                 os.system(f"sed -i '1,2d' {self.fill_table}")
-        os.remove(f'{self.fill_table}')
+        os.remove(f"{self.fill_table}")

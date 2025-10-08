@@ -20,6 +20,7 @@ def main() -> None:
         type=str,
         help="SQL table with UV data, which will be created and filled",
     )
+    parser.add_argument("-re", "--retry", help="", action="store_true")
     if len(sys.argv) < 3:
         parser.print_help()
         sys.exit()
@@ -28,7 +29,7 @@ def main() -> None:
 
     with open("config.yaml") as f:
         cfg = munchify(safe_load(f))
-    ft = FillTables(cfg)
+    ft = FillTables(cfg, retry=args.retry)
     ft.fill(args.uv_table, args.map_table)
 
 
