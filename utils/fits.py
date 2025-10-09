@@ -2,7 +2,7 @@ import logging
 from utils.consts import PRIMARY, SIMPLE, OBJECT, DATE_OBS, AUTHOR, NAXIS, FREQ
 
 
-logger = logging.Logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Fits(object):

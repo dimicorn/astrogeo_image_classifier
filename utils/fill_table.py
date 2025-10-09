@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 from munch import Munch
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -8,6 +9,9 @@ from utils.uv_fits import UVFits
 from utils.map_fits import MapFits
 from utils.consts import VIS_FITS
 from utils.quality import qualityComment
+
+
+logger = logging.getLogger(__name__)
 
 
 def uv2map(file_name: str) -> str:
@@ -59,15 +63,26 @@ class FillTables(object):
             n = len(f.readlines())
 
         with logging_redirect_tqdm():
-            for _ in tqdm(range(0, n, 2)):
+            for _ in tqdm(range(n // 2)):
                 with os.popen(f"sed -n '1,2p' {self.fill_table}") as stream:
-                    uv_file, map_file = stream.read().rstrip().split("\n")
+                    block = [
+                        ln.strip() for ln in stream.read().splitlines() if ln.strip()
+                    ]
+                    # uv_file, map_file = stream.read().rstrip().split("\n")
+                if len(block) < 2:
+                    logger.info("Short read; leaving last line pending")
+                    break
+                uv_file, map_file = block
                 uv = UVFits(f"{self.data_path}/{uv_file}")
                 map_ = MapFits(f"{self.data_path}/{map_file}")
                 quality = qualityComment(
                     *uv.getQualityParams(), *map_.getQualityParams()
                 )
-                vis_table.insert_value(uv.getSQLParams() + quality)
-                map_table.insert_value(map_.getSQLParams() + quality)
-                os.system(f"sed -i '1,2d' {self.fill_table}")
-        os.remove(f"{self.fill_table}")
+                try:
+                    vis_table.insert_value(uv.getSQLParams() + quality)
+                    map_table.insert_value(map_.getSQLParams() + quality)
+                    os.system(f"sed -i '1,2d' {self.fill_table}")
+                except Exception as e:
+                    logger.error(f"{uv_file}, {map_file}, {e}")
+                    break
+        # os.remove(self.fill_table)

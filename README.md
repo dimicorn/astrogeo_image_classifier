@@ -1,4 +1,4 @@
-# Jet in AGN Classifier
+# Jet Garden
 ## Prerequisites
 Installation of `task` (not necessary, but recommended)
 ```bash
@@ -11,9 +11,9 @@ curl -sL https://taskfile.dev/install.sh | sh
 task install
 ```
 ### Without task
-Create a virtual environment using `uv venv` or `python3 -m venv .venv`, or any other prefered way. 
+Create a virtual environment using `uv venv` or `python3 -m venv .venv`, or any other prefered way.
 
-To install dependencies: 
+To install dependencies:
 ```bash
 uv sync --frozen
 ```

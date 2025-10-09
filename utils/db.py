@@ -1,7 +1,10 @@
+import logging
 import numpy as np
 from psycopg2 import connect
 from psycopg2.extensions import register_adapter, AsIs
 
+
+logger = logging.getLogger(__name__)
 
 register_adapter(np.float32, AsIs)
 register_adapter(np.int64, AsIs)
