@@ -26,17 +26,17 @@ class Table(object):
         ) as self.conn:
             self.cur = self.conn.cursor()
 
-    def selectAll(self) -> list[tuple]:
+    def select_all(self) -> list[tuple]:
         select_all = f"select * from {self.table_name};"
         self.cur.execute(select_all)
         return self.cur.fetchall()
 
-    def dropTable(self) -> None:
+    def drop_table(self) -> None:
         drop_query = f"drop table {self.table_name};"
         self.cur.execute(drop_query)
         self.conn.commit()
 
-    def closeTable(self) -> None:
+    def close_table(self) -> None:
         """Written just in case, probably will not be used"""
         if not self.conn:
             self.cur.close()

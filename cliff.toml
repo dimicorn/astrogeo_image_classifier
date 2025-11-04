@@ -40,4 +40,4 @@ sort_commits = "newest"
 
 [remote.github]
 owner = "dimicorn"
-repo = "astrogeo_image_classifier"
+repo = "jet_garden"

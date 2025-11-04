@@ -26,3 +26,6 @@ tasks:
     desc: Fill SQL Tables with Astrogeo data
     cmds:
       - python3 -m scripts.fill_dbs -uv $1 -map $2
+  clean:
+    cmds:
+      - rm -rf *.json *.log

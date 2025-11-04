@@ -8,7 +8,7 @@ from utils.db import Catalogue, OurMaps
 from utils.uv_fits import UVFits
 from utils.map_fits import MapFits
 from utils.consts import VIS_FITS
-from utils.quality import qualityComment
+from utils.quality import quality_comment
 
 
 logger = logging.getLogger(__name__)
@@ -24,13 +24,13 @@ class FillTables(object):
     def __init__(self, config: Munch, retry: bool = False) -> None:
         self.data_path, self.config_db = config.fits_path, config.db
         if not retry:
-            self._getAllFiles()
+            self._get_all_files()
 
-    def _getAllFiles(self) -> tuple[dict[str : list[str]], dict[str : list[str]]]:
+    def _get_all_files(self) -> tuple[dict[str : list[str]], dict[str : list[str]]]:
         objs = os.listdir(self.data_path)
         uv_files = {}
         map_files = {}
-        log = open(self.fill_table, "w")
+        log = open(self.fill_table, "w", encoding="utf-8")
         for obj in objs:
             uv_files[obj] = []
             map_files[obj] = []
@@ -41,9 +41,9 @@ class FillTables(object):
                     map_files[obj].append(uv2map(file))
                     log.write(f"{obj}/{uv2map(file)}\n")
         log.close()
-        with open("uv_files.json", "w") as f:
+        with open("uv_files.json", "w", encoding="utf-8") as f:
             json.dump(uv_files, f)
-        with open("map_files.json", "w") as f:
+        with open("map_files.json", "w", encoding="utf-8") as f:
             json.dump(map_files, f)
         return uv_files, map_files
 
@@ -59,7 +59,7 @@ class FillTables(object):
         map_table.connect2table()
         map_table.create_table()
 
-        with open(self.fill_table, "r") as f:
+        with open(self.fill_table, "r", encoding="utf-8") as f:
             n = len(f.readlines())
 
         with logging_redirect_tqdm():
@@ -75,14 +75,14 @@ class FillTables(object):
                 uv_file, map_file = block
                 uv = UVFits(f"{self.data_path}/{uv_file}")
                 map_ = MapFits(f"{self.data_path}/{map_file}")
-                quality = qualityComment(
-                    *uv.getQualityParams(), *map_.getQualityParams()
+                quality = quality_comment(
+                    *uv.get_quality_params(), *map_.get_quality_params()
                 )
                 try:
-                    vis_table.insert_value(uv.getSQLParams() + quality)
-                    map_table.insert_value(map_.getSQLParams() + quality)
+                    vis_table.insert_value(uv.get_sql_params() + quality)
+                    map_table.insert_value(map_.get_sql_params() + quality)
                     os.system(f"sed -i '1,2d' {self.fill_table}")
-                except Exception as e:
-                    logger.error(f"{uv_file}, {map_file}, {e}")
+                except RuntimeError as e:
+                    logger.error("%s, %s, %s", uv_file, map_file, e)
                     break
         # os.remove(self.fill_table)

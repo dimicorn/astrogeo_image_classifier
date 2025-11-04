@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 class UVFits(Fits):
     def __init__(self, file_name: str) -> None:
+        super().__init__()
         self.file_name_w_path = file_name
         self.file_name = file_name.split("/")[-1]
         self._uv_header, self._uv_data = None, None
@@ -41,7 +42,7 @@ class UVFits(Fits):
             self.sanityCheck(f)
 
             if len(f) < 3:
-                logger.error(f"Missing FQ or AN table in UV file: {self.file_name}")
+                logger.error("Missing FQ or AN table in UV file: %s", self.file_name)
             elif len(f) == 3:
                 self._freq_header = f[AIPS_FQ].header
                 self._freq_data = f[AIPS_FQ].data
@@ -60,15 +61,16 @@ class UVFits(Fits):
                 self._antenna_header = f[AIPS_AN].header
                 self._antenna_data = f[AIPS_AN].data
                 self._an_tables = len(f) - 2
-                logger.warning(f"{self.file_name} has multiple AN tables")
+                logger.warning("%s has multiple AN tables", self.file_name)
 
-        self.antennas = len(fits.getdata(file_name, extname=AIPS_AN))  # from Ilya
+        # line below is from Ilya
+        self.antennas = len(fits.getdata(file_name, extname=AIPS_AN))
         self.freq = self.getFreq()
         self.date = self._uv_header[DATE_OBS]
         self.object = self._uv_header[OBJECT]
         self.uvData()
 
-    def uvData(self) -> np.ndarray:
+    def uv_data(self) -> np.ndarray:
         """Reading UV data"""
         if self._X is None:
             data = self._uv_data
@@ -78,18 +80,18 @@ class UVFits(Fits):
 
             uu, vv = [], []
             try:
-                data[UU], data[VV]
+                _, _ = data[UU], data[VV]
                 uu_key, vv_key = UU, VV
             except KeyError:
                 try:
-                    data["UU--"], data["VV--"]
+                    _, _ = data["UU--"], data["VV--"]
                     uu_key, vv_key = "UU--", "VV--"
                 except KeyError:
                     try:
-                        data["UU---SIN"], data["VV---SIN"]
+                        _, _ = data["UU---SIN"], data["VV---SIN"]
                         uu_key, vv_key = "UU---SIN", "VV---SIN"
                     except KeyError:
-                        logger.warning(f"{self.file_name}: has weird UU and VV keys")
+                        logger.warning("%s: has weird UU and VV keys", self.file_name)
 
             if if_nums == 1:
                 for ind in range(gcount):
@@ -118,7 +120,7 @@ class UVFits(Fits):
 
         return self._X
 
-    def getSQLParams(self) -> tuple:
+    def get_sql_params(self) -> tuple:
         """object_name, obs_date, freq,
         obs_author, file_name, min_uv_radius, max_uv_radius,
         visibilities, max_amplitude, min_amplitude, mean_amplitude,
@@ -139,7 +141,7 @@ class UVFits(Fits):
         data += (freq_ch_sum, self.antennas, self._an_tables)
         return data
 
-    def getQualityParams(self) -> tuple[int]:
+    def get_quality_params(self) -> tuple[int]:
         visibilities = self._X.shape[1]
         antennas = self.antennas
         return visibilities, antennas

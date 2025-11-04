@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def qualityComment(
+def quality_comment(
     visibilities: int,
     antennas: int,
     c_x: float,

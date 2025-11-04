@@ -1,31 +1,38 @@
 import logging
+from astropy.io.fits.hdu.hdulist import HDUList
 from utils.consts import PRIMARY, SIMPLE, OBJECT, DATE_OBS, AUTHOR, NAXIS, FREQ
 
 
 logger = logging.getLogger(__name__)
 
 
-class Fits(object):
-    hdulist = None
-    file_name = None
+class Fits:
+    def __init__(self) -> None:
+        self.hdulist: HDUList = None
+        self.file_name: str = None
+        self.file_name_w_path: str = None
 
-    def sanityCheck(self, f) -> None:
+    def sanity_check(self, f) -> None:
         if not f[PRIMARY].header[SIMPLE]:
-            logger.error(f"Non standard Fits file {self.file_name}")
+            logger.error("Non standard Fits file %s", self.file_name)
 
         header = f[PRIMARY].header
-        obj_name_1 = header[OBJECT]
+        obj_name_1: str = header[OBJECT]
         file_name = self.file_name
         obj_name_2 = file_name.split("_")[0]
         if obj_name_1 != obj_name_2:
             logger.error(
-                f"Object name does not correspond to one in file name {self.file_name}"
+                "Object name does not correspond to one in file name %s",
+                self.file_name,
             )
 
         folder_name = self.file_name_w_path.split("/")[-2]
         if obj_name_1 != folder_name:
             logger.error(
-                f"Object {obj_name_1} in the {folder_name}/ directory {self.file_name}"
+                "Object %s in the %s/ directory %s",
+                obj_name_1,
+                folder_name,
+                self.file_name,
             )
 
         freq_bands = {
@@ -42,56 +49,58 @@ class Fits(object):
 
         freq_band = file_name.split("_")[1]
         freq_lower, freq_upper = freq_bands[freq_band][0], freq_bands[freq_band][1]
-        freq = self.getFreq() * 1e-9
+        freq = self.get_freq() * 1e-9
         if not (freq_lower <= freq and freq <= freq_upper):
             logger.error(
-                f"Wrong FREQ band ({freq_band}) in file name, "
-                f"frequency value {freq} GHz, {self.file_name}"
+                "Wrong FREQ band (%s) in file name, " "frequency value %.3f GHz, %s",
+                freq_band,
+                freq,
+                self.file_name,
             )
 
-    def headerData(self) -> tuple:
+    def header_data(self) -> tuple:
         """Reading PRIMARY table header"""
-        header = self.hdulist[PRIMARY].header
+        header = self.hdulist[PRIMARY].header  # pylint: disable=unsubscriptable-object
         return (
             header[OBJECT],
             header[DATE_OBS],
-            self.getFreq(),
+            self.get_freq(),
             header[AUTHOR],
             self.file_name.split("/")[-1],
         )
 
-    def getFreq(self) -> float:
+    def get_freq(self) -> float:
         # FIXME: Refactor this plz
-        header = self.hdulist[PRIMARY].header
+        header = self.hdulist[PRIMARY].header  # pylint: disable=unsubscriptable-object
         for i in range(1, header[NAXIS] + 1):
             try:
                 if header[f"CTYPE{i}"] == FREQ:
                     return header[f"CRVAL{i}"]
             except KeyError:
                 ...
-        raise logger.error("No CTYPE_i == FREQ was found", self.file_name)
+        logger.error("No CTYPE_i == FREQ was found %s", self.file_name)
 
-    def headerKeyCheck(self, key) -> float:
+    def header_key_check(self, key) -> float:
         header = self._map_header
         try:
             return header[key]
         except KeyError:
-            logger.warning(f"{self.file_name} has no {key} key")
+            logger.warning("%s has no %s key", self.file_name, key)
             return -1
 
-    def uvDataKeyCheck(self, key) -> float:
+    def uv_data_key_check(self, key) -> float:
         data = self._freq_data
         try:
             return data[key]
         except KeyError:
-            logger.warning(f"{self.file_name} has no {key} key")
+            logger.warning("%s has no %s key", self.file_name, key)
             return -1
 
-    def printHeader(self) -> None:
+    def print_header(self) -> None:
         """Printing header of the PRIMARY table"""
-        header = self.hdulist[PRIMARY].header
+        header = self.hdulist[PRIMARY].header  # pylint: disable=unsubscriptable-object
         for key in header.keys():
-            logger.info(f"{key}\t{header[key]}")
+            logger.info("%s\t%s", key, header[key])
 
     def info(self) -> None:
         self.hdulist.info()

@@ -13,3 +13,13 @@ repos:
       - id: trailing-whitespace
       - id: check-yaml
       - id: check-json
+  - repo: https://github.com/pycqa/pylint
+    rev: v3.2.7
+    hooks:
+      - id: pylint
+        name: pylint (deep lint)
+        args:
+          [
+            "--rcfile=.pylintrc",
+            "--disable=R,C",
+          ]

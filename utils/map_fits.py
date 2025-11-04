@@ -33,7 +33,8 @@ logger = logging.getLogger(__name__)
 
 
 class MapFits(Fits):
-    def __init__(self, file_name) -> None:
+    def __init__(self, file_name: str) -> None:
+        super().__init__()
         self.file_name_w_path = file_name
         self.file_name = file_name.split("/")[-1]
         self._map_header, self._map_data = None, None
@@ -46,10 +47,10 @@ class MapFits(Fits):
             self._map_header = f[PRIMARY].header
             self._map_data = f[PRIMARY].data
 
-            self.sanityCheck(f)
+            self.sanity_check(f)
 
             if len(f) == 1:
-                logger.warning(f"{self.file_name} has no CC tables")
+                logger.warning("%s has no CC tables", self.file_name)
             elif len(f) == 2:
                 self._cc_header = f[AIPS_CC].header
                 self._cc_data = f[AIPS_CC].data
@@ -62,17 +63,17 @@ class MapFits(Fits):
                 for i in range(self._cc_tables):
                     self._cc_header.append(f[i].header)
                     self._cc_data.append(f[i].data)
-                logger.warning(f"{self.file_name} has multiple CC tables")
+                logger.warning("%s has multiple CC tables", self.file_name)
 
         self.date = self._map_header[DATE_OBS]
         self.object = self._map_header[OBJECT]
         self.author = self._map_header[AUTHOR]
-        self.freq = self.getFreq()
+        self.freq = self.get_freq()
 
-    def mapData(self):
+    def map_data(self) -> np.ndarray:
         return self._map_data
 
-    def getParameters(self) -> pd.DataFrame:
+    def get_parameters(self) -> pd.DataFrame:
         """get some parameters from a header:
         CRVAL, CRPIX, FREQ, SOURCE, DATE-OBS"""
         header = self._map_header
@@ -95,7 +96,7 @@ class MapFits(Fits):
         params[CDELT2] *= 3.6e6
         return pd.DataFrame(params)
 
-    def mapNoise(self, data, k=0.1) -> float:
+    def map_noise(self, data: np.ndarray, k: float = 0.1) -> float:
         # TODO: check indexes
         # borders
         b1, b2 = int(k * data.shape[0]), int(k * data.shape[1])
@@ -107,7 +108,7 @@ class MapFits(Fits):
         noise = np.median([upper_left, upper_right, down_left, down_right])
         return noise
 
-    def getSQLParams(self) -> tuple:
+    def get_sql_params(self) -> tuple:
         """
         object_name, obs_date, freq, obs_author, file_name,
         map_max, mapc_x, mapc_y, map_max_x, map_max_y,
@@ -117,11 +118,11 @@ class MapFits(Fits):
         """
         cc_tables = self._cc_tables
 
-        pixel_size_x = self.headerKeyCheck(CDELT1) * 3.6e6
-        pixel_size_y = self.headerKeyCheck(CDELT2) * 3.6e6
+        pixel_size_x = self.header_key_check(CDELT1) * 3.6e6
+        pixel_size_y = self.header_key_check(CDELT2) * 3.6e6
 
         mapc_x, mapc_y, map_max_x, map_max_y, _, map_max, noise_level = (
-            self.getQualityParams()
+            self.get_quality_params()
         )
 
         # строчки и столбцы
@@ -138,11 +139,11 @@ class MapFits(Fits):
             float(noise_level),
         )
 
-        map_size_x = self.headerKeyCheck(NAXIS1)
-        map_size_y = self.headerKeyCheck(NAXIS2)
-        bmaj = self.headerKeyCheck(BMAJ)
-        bmin = self.headerKeyCheck(BMIN)
-        bpa = self.headerKeyCheck(BPA)
+        map_size_x = self.header_key_check(NAXIS1)
+        map_size_y = self.header_key_check(NAXIS2)
+        bmaj = self.header_key_check(BMAJ)
+        bmin = self.header_key_check(BMIN)
+        bpa = self.header_key_check(BPA)
 
         map_params = (
             map_size_x,
@@ -155,20 +156,21 @@ class MapFits(Fits):
             cc_tables,
         )
 
-        data = self.headerData() + noise + map_params
+        data = self.header_data() + noise + map_params
         return data
 
-    def getQualityParams(self) -> tuple[float]:
-        mapc_x = self.headerKeyCheck(CRPIX1)
-        mapc_y = self.headerKeyCheck(CRPIX2)
-        map_data = self.mapData().squeeze()
+    def get_quality_params(self) -> tuple[float]:
+        mapc_x = self.header_key_check(CRPIX1)
+        mapc_y = self.header_key_check(CRPIX2)
+        map_data = self.map_data().squeeze()
         index = np.argmax(map_data)
-        map_max_y, map_max_x = np.unravel_index(index, map_data.shape)
-        header_data = self.headerData()
+        coords = np.unravel_index(index, map_data.shape)
+        map_max_y, map_max_x = coords[0], coords[1]
+        header_data = self.header_data()
         author = header_data[3]
-        map_max = self.headerKeyCheck("DATAMAX")
+        map_max = self.header_key_check("DATAMAX")
         # map_max = np.max(map_data)
-        noise_level = self.mapNoise(map_data)
+        noise_level = self.map_noise(map_data)
         return (
             mapc_x,
             mapc_y,
@@ -179,16 +181,16 @@ class MapFits(Fits):
             noise_level,
         )
 
-    def getModels(self) -> pd.DataFrame:
+    def get_models(self) -> pd.DataFrame:
         models = pd.DataFrame()
         keys = [FLUX, DELTAX, DELTAY, MAJOR_AX, MINOR_AX, POSANGLE, TYPE_OBJ]
         new_keys = [FLUX, DELTAX, DELTAY, "MAJOR_AX", "MINOR_AX", POSANGLE, "TYPE_OBJ"]
 
         # If multiple CC tables, using the first one
         field_num = self._cc_header[TFIELDS]
-        for field, key, new_key in zip(range(field_num), keys, new_keys):
+        for _, key, new_key in zip(range(field_num), keys, new_keys):
             models[new_key] = self._cc_data[key].tolist()
 
         if not (field_num == 7 or field_num == 3):
-            logger.error("Wrong number of columns in CC table", self.file_name)
+            logger.error("Wrong number of columns in CC table %s", self.file_name)
         return models
