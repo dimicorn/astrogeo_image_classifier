@@ -1,0 +1,39 @@
+import argparse
+import os
+import pandas as pd
+from yaml import safe_load
+from munch import munchify
+from tqdm import tqdm
+from pre.preprocess import preprocess, preprocess_lognorm
+from pre.visualize import showProgress
+from pre.load import fits2numpy
+
+
+def draw(fits_path: str, suptitle: str = None, img_dir: str = None):
+    raw_im = fits2numpy(fits_path)
+    im = preprocess(raw_im)
+    im_lognorm = preprocess_lognorm(raw_im)
+    filename = fits_path.split('/')[-1].split('.')[0]
+    # np.save(f'{output_path}/{filename}', im)
+    # np.save(f'{output_path}/{filename}_lognorm', im_lognorm)
+    showProgress(filename, raw_im, im, im_lognorm, suptitle=suptitle, img_dir=img_dir)
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-f",
+        "--file",
+        type=str,
+    )
+    args = parser.parse_args()
+    with open("config.yaml") as f:
+        cfg = munchify(safe_load(f))
+    root = cfg.data_path
+    res_path = args.file.split('.')[0]
+    os.makedirs(res_path, exist_ok=True)
+    df = pd.read_csv(args.file)
+    for source, file, comment in tqdm(zip(df.object_name, df.file_name, df.comment)):
+        draw(f'{root}/images_verApr2025/{source}/{file}', suptitle=comment, img_dir=res_path)
+
+if __name__ == '__main__':
+    main()
