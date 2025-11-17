@@ -8,10 +8,11 @@ wheels/
 
 # Virtual environments
 .venv
-
+.ruff_cache
 *.png
+*.pdf
 *.npy
 *.sh
 *.yml
-*.txt
+val_paths.txt
 *.csv

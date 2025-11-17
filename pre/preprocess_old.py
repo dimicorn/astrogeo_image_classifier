@@ -4,8 +4,8 @@ import cv2 as cv
 
 def rms(data, k=0.1) -> float:
     b1, b2 = int(k * data.shape[0]), int(k * data.shape[1])
-    b3, b4 = int((1-k) * data.shape[0]), int((1-k) * data.shape[1])
-        
+    b3, b4 = int((1 - k) * data.shape[0]), int((1 - k) * data.shape[1])
+
     upper_left = np.mean(data[:b1, :b2].flatten() ** 2)
     upper_right = np.mean(data[b3:, :b2].flatten() ** 2)
     down_left = np.mean(data[:b1, b4:].flatten() ** 2)
