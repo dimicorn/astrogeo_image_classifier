@@ -9,7 +9,7 @@ from pre.visualize import draw
 
 
 def main():
-    with open("config.yml") as f:
+    with open("config.yaml") as f:
         cfg = munchify(safe_load(f))
 
     parser = ArgumentParser()
