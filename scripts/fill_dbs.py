@@ -1,3 +1,4 @@
+import os
 from warnings import filterwarnings
 import argparse
 import sys
@@ -27,7 +28,7 @@ def main() -> None:
     args = parser.parse_args()
     filterwarnings("ignore")
 
-    with open("config.yaml") as f:
+    with open(os.getenv("CONFIG_PATH"), encoding="utf-8") as f:
         cfg = munchify(safe_load(f))
     ft = FillTables(cfg, retry=args.retry)
     ft.fill(args.uv_table, args.map_table)

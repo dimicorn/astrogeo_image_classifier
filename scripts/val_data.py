@@ -1,3 +1,4 @@
+import os
 from warnings import filterwarnings
 from types import SimpleNamespace as sn
 from sys import argv
@@ -15,8 +16,8 @@ def drawAstrogeo(maps: pd.DataFrame, path: str, val_path: str = "real_data") -> 
     print("Finished filtering")
     for quality, file_name in tqdm(zip(maps.map_quality, maps.file_name)):
         if quality == 1:
-            dir = file_name.split("_")[0]
-            im = Image(f"{path}/{dir}/{file_name}")
+            dir_path = file_name.split("_")[0]
+            im = Image(f"{path}/{dir_path}/{file_name}")
             map2d = im.mapData().squeeze()
             map2d = preprocess(map2d)
             im.drawMapRaw(val_path)
@@ -26,7 +27,7 @@ def main():
     if len(argv) == 1:
         raise RuntimeError
     filterwarnings("ignore")
-    with open("config.yaml") as f:
+    with open(os.getenv("CONFIG_PATH"), encoding="utf-8") as f:
         config = sn(**load(f, Loader=FullLoader))
     config_db, path = sn(**config.db), config.fits_path
 

@@ -52,7 +52,7 @@ class Fits:
         freq = self.get_freq() * 1e-9
         if not (freq_lower <= freq and freq <= freq_upper):
             logger.error(
-                "Wrong FREQ band (%s) in file name, " "frequency value %.3f GHz, %s",
+                "Wrong FREQ band (%s) in file name, frequency value %.3f GHz, %s",
                 freq_band,
                 freq,
                 self.file_name,

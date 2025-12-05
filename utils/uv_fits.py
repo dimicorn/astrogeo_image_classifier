@@ -39,7 +39,7 @@ class UVFits(Fits):
             self._uv_header = f[PRIMARY].header
             self._uv_data = f[PRIMARY].data
 
-            self.sanityCheck(f)
+            self.sanity_check(f)
 
             if len(f) < 3:
                 logger.error("Missing FQ or AN table in UV file: %s", self.file_name)
@@ -65,10 +65,10 @@ class UVFits(Fits):
 
         # line below is from Ilya
         self.antennas = len(fits.getdata(file_name, extname=AIPS_AN))
-        self.freq = self.getFreq()
+        self.freq = self.get_freq()
         self.date = self._uv_header[DATE_OBS]
         self.object = self._uv_header[OBJECT]
-        self.uvData()
+        self.uv_data()
 
     def uv_data(self) -> np.ndarray:
         """Reading UV data"""
@@ -125,7 +125,7 @@ class UVFits(Fits):
         obs_author, file_name, min_uv_radius, max_uv_radius,
         visibilities, max_amplitude, min_amplitude, mean_amplitude,
         median_amplitude, freq_band, antennas, antenna_tables, uv_quality, comment"""
-        header_data = self.headerData()
+        header_data = self.header_data()
         radius = np.sqrt(self._X[0] * self._X[0] + self._X[1] * self._X[1])
         min_radius, max_radius = float(np.min(radius)), float(np.max(radius))
         ampl = self._X[2]
@@ -135,7 +135,7 @@ class UVFits(Fits):
             float(np.mean(ampl)),
             float(np.median(ampl)),
         )
-        freq_ch_sum = float(np.sum(self.uvDataKeyCheck(CH_WIDTH)))  # freq band
+        freq_ch_sum = float(np.sum(self.uv_data_key_check(CH_WIDTH)))  # freq band
 
         data = header_data + (min_radius, max_radius, self._X.shape[1]) + ampl_data
         data += (freq_ch_sum, self.antennas, self._an_tables)

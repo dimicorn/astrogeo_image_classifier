@@ -1,7 +1,7 @@
+import os
 from warnings import filterwarnings
 from types import SimpleNamespace as sn
 from sys import argv
-import os
 import pandas as pd
 from yaml import load, FullLoader
 from psycopg2 import connect
@@ -18,9 +18,9 @@ def drawAstrogeo(maps: pd.DataFrame, path: str, output_path: str = "real_data") 
     for source_class, file_name in tqdm(zip(maps.source_class, maps.file_name)):
         if not os.path.isdir(f"{output_path}/{source_class}"):
             os.mkdir(f"{output_path}/{source_class}")
-        dir = file_name.split("_")[0]
+        dir_path = file_name.split("_")[0]
         name = file_name.split(".")[0]
-        with fits.open(f"{path}/{dir}/{name}.fits") as f:
+        with fits.open(f"{path}/{dir_path}/{name}.fits") as f:
             im = np.array(f["PRIMARY"].data)
         im = im.squeeze()
         min_val = im.min()
@@ -36,7 +36,7 @@ def main():
     if len(argv) == 1:
         raise RuntimeError
     filterwarnings("ignore")
-    with open("config.yaml") as f:
+    with open(os.getenv("CONFIG_PATH"), encoding="utf-8") as f:
         config = sn(**load(f, Loader=FullLoader))
     config_db, path = sn(**config.db), config.fits_path
 

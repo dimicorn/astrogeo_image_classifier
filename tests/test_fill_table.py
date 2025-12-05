@@ -11,11 +11,11 @@ def test_uv2map():
     assert map_name == "J1608-1625_X_2014_08_09_pus_map.fits"
 
 
-def test_getAllFiles():
-    with open("config.yaml", "r") as f:
+def test_get_all_files():
+    with open(os.getenv("CONFIG_PATH"), "r", encoding="utf-8") as f:
         cfg = munchify(safe_load(f))
     ft = FillTables(cfg)
-    uvs, maps = ft._getAllFiles()
+    uvs, maps = ft._get_all_files()  # pylint: disable=protected-access
     assert isinstance(uvs, dict) and isinstance(maps, dict)
     assert len(uvs) == len(maps)
     for obj_uv, obj_map in zip(uvs, maps):
@@ -31,3 +31,6 @@ def test_logFiles():
     assert os.path.exists("fill_table.log")
     assert os.path.exists("uv_files.json")
     assert os.path.exists("map_files.json")
+    os.remove("fill_table.log")
+    os.remove("uv_files.json")
+    os.remove("map_files.json")
