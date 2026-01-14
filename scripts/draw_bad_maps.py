@@ -4,7 +4,7 @@ import pandas as pd
 from yaml import safe_load
 from munch import munchify
 from tqdm import tqdm
-from pre.visualize import draw
+from pre.visualize import Visualize
 
 
 def main() -> None:
@@ -22,7 +22,7 @@ def main() -> None:
     os.makedirs(res_path, exist_ok=True)
     df = pd.read_csv(args.file)
     for source, file, comment in tqdm(zip(df.object_name, df.file_name, df.comment)):
-        draw(
+        Visualize.draw(
             f"{root}/images_verApr2025/{source}/{file}",
             suptitle=comment,
             img_dir=res_path,

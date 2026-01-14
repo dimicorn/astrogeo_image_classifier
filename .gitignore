@@ -13,6 +13,5 @@ wheels/
 *.pdf
 *.npy
 *.sh
-*.yaml
 val_paths.txt
 *.csv
