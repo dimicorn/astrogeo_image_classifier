@@ -1,17 +1,8 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
-
-# Virtual environments
-.venv
-.ruff_cache
+__pycache__
+.vscode
 *.png
 *.pdf
 *.npy
 *.sh
-val_paths.txt
 *.csv
+data
